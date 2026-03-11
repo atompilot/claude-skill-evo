@@ -624,6 +624,19 @@ reference/
 - 做出了技术决策（选型、架构方案）→ 建议记录到 decisions/
 - 完成了技术调研或深度分析 → 建议记录到 research/
 - 发现了项目的隐式惯例 → 建议记录到 conventions/
+
+## 知识捕获触发器
+
+在对话中识别以下信号，主动建议记录（询问用户，不强制）：
+
+| 信号 | 建议记入 |
+|------|---------|
+| "这里有个问题"/"感觉不对" | `.claude/knowledge/pitfalls/` |
+| "要不要试试"/"可以考虑" | `.claude/knowledge/ideas/` |
+| "记住这个"/"以后要做" | `.claude/knowledge/ideas/`（若 todo skill 已安装则优先记入 `todo.md`）|
+| 调研结论/技术选型依据 | `.claude/knowledge/research/` |
+
+记录格式：日期 + 一句话背景 + 内容，文件放对应目录。
 ```
 
 ### 4.4 Skill 生成规则
