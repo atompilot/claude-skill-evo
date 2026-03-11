@@ -181,6 +181,41 @@ Write all? Or confirm one by one?
 
 **All updates require your confirmation.** Skills propose, you decide.
 
+### 4. Cross-Session Evolution (Hooks)
+
+The three mechanisms above work **within** a single session. But what about corrections you made last week? Patterns that emerge over months?
+
+SkillForge includes a **hook-based evolution system** that captures interaction data across sessions:
+
+```
+Session 1: You correct Claude → hook captures it
+Session 2: You correct again  → hook captures it
+Session 3: You start working  → Claude reads accumulated signals
+                               → "I noticed you corrected X twice. Write to skill?"
+```
+
+**How it works:**
+
+| Layer | When | What |
+|-------|------|------|
+| **Capture** | Every session (async hooks) | Records prompts, tool usage, commands |
+| **Digest** | Session end (shell script) | Extracts corrections, patterns, failures |
+| **Evolve** | Next session start (Claude) | Reads digest checkpoint + new signals → proposes updates |
+
+**Key innovation: incremental digest checkpoint.** Claude never re-reads all historical data. It reads a summary of what it already knows (`evolution-digest.md`) plus only new signals — so analysis gets faster, not slower, as your project grows.
+
+```bash
+# Manual triggers
+/{prefix}-evolve    # Run evolution analysis now
+/{prefix}-digest    # View evolution status
+```
+
+**Standalone installation** (for projects with existing skills):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/atompilot/skillforge/main/evolution/install.sh | bash
+```
+
 ## Guided Q&A
 
 SkillForge doesn't interrogate you — it guides you:
@@ -268,8 +303,29 @@ MIT
 1. **Auto-Learn（主动学习）**：检测你的纠正、重复模式、显式指令，提议写入 skill
 2. **Stale Detection（过期检测）**：发现失效路径、失败命令、API 变更、规范冲突
 3. **Session Review（会话回顾）**：长会话结束前主动盘点可沉淀的新知识
+4. **Cross-Session Evolution（跨会话进化）**：通过 hooks 捕获交互数据，跨会话积累分析，增量摘要永不从零开始
 
 **所有更新都需要你确认，skills 绝不擅自修改。**
+
+### 跨会话进化系统
+
+会话内的进化靠 Claude 实时感知，但上次会话的纠正怎么办？
+
+SkillForge 内置 hook 系统，**自动捕获你的交互数据**（纠正、指令、操作模式），跨会话积累分析：
+
+```
+会话 1: 你纠正了 Claude → hook 自动捕获
+会话 2: 你又纠正了一次  → hook 自动捕获
+会话 3: 你开始工作      → Claude 读取积累的信号
+                        → "我发现你纠正过 X 两次，要写入 skill 吗？"
+```
+
+核心创新：**增量摘要 checkpoint**。Claude 不会每次重读所有历史数据，而是读取上次的总结 + 新增信号——分析速度越来越快，而不是越来越慢。
+
+```bash
+/{prefix}-evolve    # 手动触发进化分析
+/{prefix}-digest    # 查看进化状态
+```
 
 ### 引导式问答
 

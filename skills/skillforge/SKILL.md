@@ -307,6 +307,8 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | `commit` | `{prefix}-commit` | Git 提交规范（Conventional Commits） |
 | `bugfix` | `{prefix}-bugfix` | 深度 Bug 修复工作流 + 经验记录库 |
 | `skill` | `{prefix}-skill` | 元技能，管理所有 skills，含进化引擎 |
+| `evolve` | `{prefix}-evolve` | 手动触发进化分析，跨会话积累优化 |
+| `digest` | `{prefix}-digest` | 查看进化摘要和进化状态 |
 
 #### 条件 Skills（根据技术栈选择）
 
@@ -546,8 +548,50 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 
 1. **CLAUDE.md**（最先，因为 skills 会引用它）
 2. **{prefix}-skill**（元技能，包含目录速查表 + 进化引擎）
-3. **其他 skills**（按依赖顺序，每个注入进化协议）
-4. **.gitignore 更新**（追加，不覆盖）
+3. **{prefix}-evolve + {prefix}-digest**（进化触发 + 进化摘要查看）
+4. **其他 skills**（按依赖顺序，每个注入进化协议）
+5. **进化系统配置**（hooks + 脚本 + 目录结构）
+6. **.gitignore 更新**（追加，不覆盖）
+
+### 4.1.1 进化系统配置（首次初始化时自动执行）
+
+创建进化系统的基础设施：
+
+```bash
+# 1. 创建目录结构
+mkdir -p .claude/evolution/{raw,hooks}
+
+# 2. 写入 capture.sh（统一 hook 入口）
+# 3. 写入 digest.py（SessionEnd 预处理）
+# 4. 初始化 session-meta.json
+echo '{"total_sessions":0,"last_digest_session":0,"pending_signal_count":0}' \
+  > .claude/evolution/session-meta.json
+
+# 5. 初始化空 evolution-digest.md
+# 6. 合并 hook 配置到 .claude/settings.json（不覆盖已有 hooks）
+```
+
+**Hook 注册**（合并到 `.claude/settings.json`）：
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "bash .claude/evolution/hooks/capture.sh", "timeout": 10}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "bash .claude/evolution/hooks/capture.sh", "timeout": 5}]}],
+    "PostToolUse": [{"matcher": "Edit|Write|Bash|Read", "hooks": [{"type": "command", "command": "bash .claude/evolution/hooks/capture.sh", "timeout": 5}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "bash .claude/evolution/hooks/capture.sh", "timeout": 5}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "bash .claude/evolution/hooks/capture.sh", "timeout": 30}]}]
+  }
+}
+```
+
+**.gitignore 追加**：
+
+```
+.claude/evolution/raw/
+.claude/evolution/pending-signals.jsonl
+.claude/evolution/session-meta.json
+```
 
 ### 4.2 优化模式的更新规则
 
@@ -792,6 +836,48 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 | `review` | 新的审查规则发现、误报规则剔除 |
 | `test` | 新的测试模式、覆盖率变化、断言风格演变 |
 | `research` | 评估维度扩展、新的对比指标 |
+
+### Evolution System Integration（进化系统集成）
+
+如果项目配置了进化系统（`.claude/evolution/` 目录存在），每个生成的 skill 的进化协议中额外注入以下内容：
+
+```markdown
+### Evolution System Integration
+
+本项目已配置跨会话进化系统，与 Auto-Learn 协作方式如下：
+
+**分工**：
+- **Auto-Learn**：实时的、会话内的即时提议（用户纠正 → 立刻提议写入）
+- **进化系统**：跨会话的、积累分析（多次会话的数据 → 批量提议）
+
+**当收到 `<evolution-trigger>` 注入时**：
+1. 不打断用户当前任务
+2. 在任务完成后或合适时机读取进化数据
+3. 读取 `.claude/evolution/evolution-digest.md`（上次总结）
+4. 读取 `.claude/evolution/pending-signals.jsonl`（新增信号）
+5. 对比本 skill 内容，生成进化提议
+6. 等待用户确认后写入
+
+**手动触发**：
+- `/{prefix}-evolve` — 立即执行进化分析
+- `/{prefix}-digest` — 查看当前进化状态
+```
+
+### 进化系统数据流
+
+```
+用户日常使用 skills
+    ↓ (hooks 自动捕获)
+raw/ 原始数据（prompt、tool 调用、响应）
+    ↓ (SessionEnd 自动预处理)
+pending-signals.jsonl（纠正、指令、模式、失败）
+    ↓ (积累 ≥5 条 或 ≥3 个会话 → 触发)
+Claude 读取 digest + signals → 生成提议
+    ↓ (用户确认)
+写入 skill + 更新 digest（checkpoint）
+    ↓
+digest 成为下次分析的起点（增量，不从零开始）
+```
 
 ---
 
@@ -1043,6 +1129,139 @@ source: skillforge
 ### Session Review
 
 {标准 Session Review 流程}
+```
+
+### 模板：evolve
+
+```markdown
+---
+name: {prefix}-evolve
+description: >
+  触发 Skill 进化分析。读取跨会话积累的交互信号，对比现有 skill 内容，
+  生成进化提议并等待确认。
+  触发词：进化、evolve、优化 skill、skill 进化、skill 更新、进化分析。
+version: 1.0.0
+source: skillforge
+---
+
+# Skill 进化分析
+
+> 读取进化系统积累的信号，分析并提议 skill 更新。
+
+## 执行步骤
+
+1. **读取 checkpoint**：`.claude/evolution/evolution-digest.md`
+2. **读取新信号**：`.claude/evolution/pending-signals.jsonl`
+3. **读取统计**：`.claude/evolution/session-meta.json`
+4. **逐个对比**：`.claude/skills/{prefix}-*/SKILL.md`
+5. **生成提议**，等待用户确认
+6. 确认后写入 skill、更新 digest、清空已消化信号
+
+## 信号类型
+
+| 类型 | 来源 | 处理方式 |
+|------|------|---------|
+| `correction` | 用户纠正（"不对"、"应该是"） | 直接提议写入对应 skill |
+| `instruction` | 显式指令（"记住"、"以后都"） | 直接提议写入对应 skill |
+| `pattern` | 重复操作模式（热点文件、常用命令） | ≥2 次出现才提议 |
+| `failure` | 命令执行失败 | 检查是否需要更新 dev skill |
+
+## 提议展示格式
+
+```
+🧬 Skill 进化分析（基于最近 {N} 个会话的 {M} 条信号）
+
+📝 建议更新：
+1. {prefix}-{skill} v{old} → v{new}
+   来源：[S#{session}] {信号描述}
+   变更：在「{章节名}」{添加/修改/删除} {内容摘要}
+   预览：
+   ---
+   {将写入的具体内容}
+   ---
+
+⏭️ 暂不处理（证据不足）：
+N. {描述} — 再观察 {N} 个会话
+
+逐条确认？全部写入？跳过？
+```
+
+## 质量控制
+
+| 规则 | 说明 |
+|------|------|
+| 证据阈值 | 纠正/指令：单次即提议。模式：≥2 次才提议 |
+| 不重复提议 | 对比 digest 的 Confirmed Patterns，已存在的跳过 |
+| 矛盾检测 | 新规则与现有 skill 矛盾 → 展示冲突让用户选择 |
+| 暂缓机制 | 证据不足 → 标记为"暂缓"，在 digest 中记录，继续积累 |
+
+## 写入后操作
+
+1. 更新 skill 文件（version patch +1）
+2. 更新 `evolution-digest.md`：
+   - Confirmed Patterns 追加已确认条目
+   - Correction History 追加纠正记录
+   - Tool Usage Patterns 更新统计
+   - Pending Proposals 移除已处理的
+   - Evolution Log 追加版本变更
+3. 更新 `session-meta.json`（last_digest_session、pending_signal_count）
+4. 清空 `pending-signals.jsonl` 中已消化的信号
+5. 追加到 `{prefix}-skill/evolution.log`
+```
+
+### 模板：digest
+
+```markdown
+---
+name: {prefix}-digest
+description: >
+  查看 Skill 进化摘要。展示已确认规范、待处理提议、纠正历史、
+  工具使用热点、进化日志。只读操作，不做任何修改。
+  触发词：digest、进化摘要、进化记录、skill 状态、进化历史、进化报告。
+version: 1.0.0
+source: skillforge
+---
+
+# Skill 进化摘要
+
+> 展示进化系统的当前状态，只读不修改。
+
+## 执行步骤
+
+1. 读取 `.claude/evolution/evolution-digest.md`
+2. 读取 `.claude/evolution/session-meta.json`
+3. 统计 `.claude/evolution/pending-signals.jsonl` 行数
+4. 格式化展示
+
+## 输出格式
+
+```
+📊 Skill 进化状态
+
+会话总数：{total_sessions}
+上次分析：Session #{last_digest_session}（{日期}）
+待处理信号：{pending_signal_count} 条
+
+───────────────────────────────────
+
+{evolution-digest.md 的完整内容，格式化展示}
+
+───────────────────────────────────
+
+💡 执行 /{prefix}-evolve 可触发进化分析
+```
+
+## 无进化数据时
+
+```
+📊 Skill 进化状态
+
+进化系统已配置，但还没有积累数据。
+正常使用 skills 即可——系统会自动在后台捕获交互信号。
+
+积累 ≥5 条信号后，会在 SessionStart 时自动提示进化分析。
+也可以随时执行 /{prefix}-evolve 手动触发。
+```
 ```
 
 ### 模板：api
