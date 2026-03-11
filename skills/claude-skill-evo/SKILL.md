@@ -843,6 +843,12 @@ source: claude-skill-evo
 
 **ARGUMENTS**: $ARGUMENTS（支持 `--major` / `--minor` / `--patch` 强制版本类型）
 
+```
+/{prefix}-commit                   # 默认：提交所有 git 变更
+/{prefix}-commit --minor           # 强制 minor 版本
+/{prefix}-commit @src/foo.ts       # 仅提交指定文件（Claude 直接收到文件内容，跳过 git diff）
+```
+
 > **职责边界**：本 skill 只负责提交。代码审查请在提交前单独运行 `{prefix}-review`。
 
 ## 步骤 1：查看当前变更
@@ -1276,11 +1282,18 @@ source: claude-skill-evo
 
 # {项目名} 代码审查工作流
 
+```
+/{prefix}-review                   # 默认：审查 git diff（已暂存 + 未暂存）
+/{prefix}-review @src/foo.ts       # 审查指定文件（Claude 直接收到内容，无需 git diff）
+/{prefix}-review @src/foo.ts @src/bar.ts   # 同时审查多个文件
+```
+
 ## 审查范围
 
-{根据用户选择}
-- 审查对象：{变更文件 / 变更+关联文件}
-- 获取变更：`git diff --name-only HEAD~1` 或 `git diff --staged --name-only`
+若 $ARGUMENTS 包含 `@` 文件引用 → 直接使用文件内容作为审查输入，跳过 git diff。
+否则：
+- 获取变更：`git diff HEAD`（已暂存 + 未暂存）
+- 记录变更涉及的功能模块，供 Agent 4 使用
 
 ## 多维度并行审查
 
