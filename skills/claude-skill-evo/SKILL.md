@@ -88,11 +88,31 @@ grep -rl "<!-- STALE:" .claude/skills/ 2>/dev/null
 cat .claude/skills/*-skill/evolution.log 2>/dev/null
 ```
 
+然后**对照模板库**，找出尚未创建的 skill：
+
+**模板库完整列表**（Phase 2.1 定义的 8 个模板）：
+
+| 模板 | 生成名 | 适用条件 |
+|------|--------|---------|
+| `dev` | `{prefix}-dev` | 几乎所有项目 |
+| `commit` | `{prefix}-commit` | 几乎所有项目 |
+| `debug` | `{prefix}-debug` | 几乎所有项目 |
+| `skill` | `{prefix}-skill` | 几乎所有项目 |
+| `digest` | `{prefix}-digest` | 知识沉淀需求较强的项目 |
+| `review` | `{prefix}-review` | 有代码审查需求 |
+| `research` | `{prefix}-research` | 有技术选型/调研需求 |
+| `todo` | `{prefix}-todo` | 有持久化待办需求 |
+
+对每个模板：
+1. 检查 `.claude/skills/{prefix}-{name}/SKILL.md` 是否存在
+2. 若不存在，根据项目特征判断"该 skill 对此项目有价值吗？"
+3. 有价值的列入"可新增"区块，用简短理由说明
+
 然后结合 $ARGUMENTS（用户的提示词）和扫描结果，判断本次优化方向：
 
 | 用户提示词 | 优化方向 |
 |-----------|---------|
-| 无（空） | 全面巡检：检查过期内容、缺失 skill、可改进点 |
+| 无（空） | 全面巡检：检查过期内容 + 对照模板库检测缺失 skill + 可改进点 |
 | "补充调研" | 重点检查/创建 research skill |
 | "根据 README 完善" | 读取 README.md，对比 skills 内容，补充缺失信息 |
 | "更新 dev 命令" | 重点扫描代码中的实际命令，更新 dev skill |
@@ -106,9 +126,16 @@ cat .claude/skills/*-skill/evolution.log 2>/dev/null
   ✅ {prefix}-dev      v1.0.2  — 健康
   ✅ {prefix}-commit   v1.0.0  — 健康
   ⚠️ {prefix}-debug   v1.0.1  — 发现 1 处过期内容
+
+模板库对比（缺失的 skill）：
+  💡 {prefix}-research  — 项目有技术选型需求，建议创建
+  💡 {prefix}-review    — 有 CI/CD 配置，代码审查 skill 会有价值
+
 发现的改进机会：
-  1. 🔄 {prefix}-debug 中踩坑记录路径与知识库不一致 → 建议更新
+  1. ⚠️ {prefix}-debug 中踩坑记录路径与知识库不一致 → 建议更新
   2. 📝 README.md 中有启动命令，但 dev skill 中缺少 → 建议补充
+  3. ➕ 新增 {prefix}-research（技术选型 skill）
+  4. ➕ 新增 {prefix}-review（代码审查 skill）
 
 要处理哪些？（输入编号，如 "1,3" / "全部" / "跳过"）
 ```
