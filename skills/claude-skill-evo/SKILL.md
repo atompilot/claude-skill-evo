@@ -408,16 +408,9 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
    c) 不确定 — 💡 建议选 (b)，多看一层关联很有价值
 ```
 
-#### `{prefix}-digest` 要问的：
+#### `{prefix}-digest`：无需提问
 
-```
-📝 关于知识沉淀：
-
-1. 知识库存储路径？
-   💡 默认是 `.claude/knowledge/`，放在 .claude 目录下统一管理。
-   如果你的项目已有类似目录（如 `docs/adr/`、`notes/`），可以告诉我复用。
-   （回车确认默认 / 输入自定义路径）
-```
+知识库固定在 `.claude/knowledge/`，无需用户选择。
 
 #### 其他 skill 的提问同理：给选项、给例子、给推荐、允许跳过。
 
@@ -475,10 +468,10 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 ### 4.1.1 知识库初始化（首次初始化时自动执行）
 
 ```bash
-mkdir -p {knowledge_path}/{decisions,research,pitfalls,conventions,references}
+mkdir -p .claude/knowledge/{decisions,research,pitfalls,conventions,references}
 ```
 
-创建 `{knowledge_path}/index.md`：
+创建 `.claude/knowledge/index.md`：
 
 ```markdown
 # {项目名} 知识库索引
@@ -632,7 +625,7 @@ source: claude-skill-evo
 
 ### 4.5 Debug Skill 与知识库集成
 
-debug skill 的踩坑记录写入 `{knowledge_path}/pitfalls/`，格式由 digest skill 定义。
+debug skill 的踩坑记录写入 `.claude/knowledge/pitfalls/`，格式由 digest skill 定义。
 
 知识库目录在 Phase 4.1 中统一创建，debug skill 无需单独创建 records 目录。
 
@@ -811,7 +804,7 @@ source: claude-skill-evo
 
 # {项目名} 深度 Bug 修复
 
-> 踩坑记录路径：`{knowledge_path}/pitfalls/`（由 digest skill 统一管理）
+> 踩坑记录路径：`.claude/knowledge/pitfalls/`（由 digest skill 统一管理）
 
 ## 核心原则
 
@@ -835,12 +828,12 @@ source: claude-skill-evo
 
 ### 记录路径
 
-踩坑记录统一写入知识库：`{knowledge_path}/pitfalls/YYYY-MM-DD-{topic}.md`
+踩坑记录统一写入知识库：`.claude/knowledge/pitfalls/YYYY-MM-DD-{topic}.md`
 
 ### 修复后自动执行
 
-1. 创建 `{knowledge_path}/pitfalls/YYYY-MM-DD-{topic}.md`（使用 digest 踩坑模板）
-2. 更新 `{knowledge_path}/index.md`「踩坑记录」章节
+1. 创建 `.claude/knowledge/pitfalls/YYYY-MM-DD-{topic}.md`（使用 digest 踩坑模板）
+2. 更新 `.claude/knowledge/index.md`「踩坑记录」章节
 3. 更新本 skill「已知 Bug 速查索引」表
 
 ## 已知 Bug 速查索引
@@ -950,12 +943,12 @@ source: claude-skill-evo
 
 # {项目名} 知识沉淀
 
-> 知识库路径：`{knowledge_path}/`
+> 知识库路径：`.claude/knowledge/`
 
 ## 知识库结构
 
 ```
-{knowledge_path}/
+.claude/knowledge/
 ├── index.md              # 知识索引（按类型分章节）
 ├── decisions/            # 技术决策记录
 ├── research/             # 调研结论
@@ -1079,12 +1072,12 @@ source: claude-skill-evo
 ### 写入知识
 
 1. 判断内容类型（决策/调研/踩坑/惯例/参考）
-2. 用对应模板创建 `{knowledge_path}/{type}/YYYY-MM-DD-{topic}.md`
-3. 更新 `{knowledge_path}/index.md` 对应章节
+2. 用对应模板创建 `.claude/knowledge/{type}/YYYY-MM-DD-{topic}.md`
+3. 更新 `.claude/knowledge/index.md` 对应章节
 
 ### 查看知识
 
-1. 读取 `{knowledge_path}/index.md`
+1. 读取 `.claude/knowledge/index.md`
 2. 按类型或关键词筛选
 3. 读取具体文件展示详情
 
