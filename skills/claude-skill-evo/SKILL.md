@@ -313,42 +313,51 @@ grep -rl "status: pending" .claude/knowledge/ideas/ 2>/dev/null | wc -l  # pendi
 
 ## Phase 2: Skill 规划
 
-### 2.1 Skill 模板库
+### 2.1 模板库
 
-根据收集到的项目信息，从以下模板生成全套 skill：
+根据收集到的项目信息，生成以下完整体系：
 
-| Skill 模板 | 生成名 | 内容 |
-|-----------|--------|------|
+**Skills**（行为模式，关键词自动触发，生成到 `.claude/skills/`）：
+
+| 模板 | 生成名 | 内容 |
+|------|--------|------|
 | `dev` | `{prefix}-dev` | 本地开发命令、环境配置、端口分配 |
-| `commit` | `{prefix}-commit` | Git 提交规范（Conventional Commits） |
 | `debug` | `{prefix}-debug` | 深度调试工作流 + 经验记录库 |
 | `skill` | `{prefix}-skill` | 元技能，管理所有 skills，含进化引擎 |
 | `digest` | `{prefix}-digest` | 知识沉淀（决策、调研、踩坑、惯例、外部参考） |
-| `review` | `{prefix}-review` | 代码审查工作流（多 agent 并行审查） |
-| `research` | `{prefix}-research` | 技术选型评估 + 源码深度分析（含 shallow clone） |
 | `todo` | `{prefix}-todo` | 项目级待办管理，持久化到 `.claude/knowledge/todo.md` |
+
+**Commands**（过程执行，仅显式 `/command` 调用，生成到 `.claude/commands/`）：
+
+| 模板 | 生成文件名 | 内容 |
+|------|----------|------|
+| `commit` | `{prefix}-commit.md` | Git 提交工作流（精确暂存、VERSION、推送） |
+| `review` | `{prefix}-review.md` | 代码审查工作流（多 agent 并行审查） |
+| `research` | `{prefix}-research.md` | 技术选型评估 + 源码深度分析 |
 
 ### 2.2 向用户展示规划
 
 #### 首次初始化模式
 
 ```
-根据你的项目信息，我建议锻造以下 skills：
+根据你的项目信息，我建议生成以下体系：
 
-📂 .claude/skills/
+📂 .claude/skills/              （行为模式，关键词自动触发）
 ├── {prefix}-skill/SKILL.md    ✅ 元技能（含进化引擎）
 ├── {prefix}-dev/SKILL.md      ✅ 本地开发
-├── {prefix}-commit/SKILL.md   ✅ Git 提交
 ├── {prefix}-debug/SKILL.md    ✅ Bug 修复（含经验记录库）
 ├── {prefix}-digest/SKILL.md   ✅ 知识沉淀
-├── {prefix}-review/SKILL.md   ✅ 代码审查
-├── {prefix}-research/SKILL.md ✅ 技术调研
 └── {prefix}-todo/SKILL.md     ✅ 项目待办（持久化）
+
+📂 .claude/commands/            （过程执行，显式 /command 调用）
+├── {prefix}-commit.md         ✅ Git 提交工作流
+├── {prefix}-review.md         ✅ 代码审查工作流
+└── {prefix}-research.md       ✅ 技术调研工作流
 
 同时生成：
 └── .claude/CLAUDE.md          # 项目级 Claude 指令
 
-🧬 所有 skill 将内置「自我进化协议」
+🧬 Skills 内置「自我进化协议」，Commands 轻量无需进化协议
 
 要去掉哪些？确认后开始锻造。
 ```
@@ -670,9 +679,9 @@ reference/
 记录格式：日期 + 一句话背景 + 内容，文件放对应目录。
 ```
 
-### 4.4 Skill 生成规则
+### 4.4 生成规则
 
-每个 Skill 的 SKILL.md 必须包含：
+#### Skill 格式（`.claude/skills/{prefix}-{name}/SKILL.md`）
 
 ```yaml
 ---
@@ -684,6 +693,17 @@ version: 1.0.0
 source: claude-skill-evo
 ---
 ```
+
+#### Command 格式（`.claude/commands/{prefix}-{name}.md`）
+
+```yaml
+---
+description: {一句话描述，会显示在 /command 菜单中}
+argument-hint: {参数提示，如 "可选：--major/--minor 或 @file"}
+---
+```
+
+Command 比 Skill 更轻量：无需 `name`/`version`/`source` 字段，无需触发词，无需进化协议。
 
 **内容原则**：
 
@@ -774,14 +794,13 @@ debug skill 的踩坑记录写入 `.claude/knowledge/pitfalls/`，格式由 dige
 | Skill 类型 | 侧重点 | 体积上限 |
 |-----------|--------|---------|
 | `dev` | 新命令、环境变量、依赖服务变化 | 15KB |
-| `commit` | commit type 涌现、message 风格演变 | 10KB |
 | `debug` | 每次调试自动沉淀到 knowledge/pitfalls、更新速查索引 | 15KB |
 | `digest` | 新知识类型需求、索引结构优化、模板字段补充 | 15KB |
 | `skill`（元技能） | 新 skill 创建时更新目录表、跨 skill 一致性 | 15KB |
-| `review` | 新审查规则、误报规则剔除 | 15KB |
 | `test` | 新测试模式、覆盖率、断言风格 | 15KB |
-| `research` | 评估维度扩展、对比指标 | 15KB |
 | `promote` | 新渠道发现、推广效果反馈、README 优化点 | 15KB |
+
+> Commands（commit/review/research）为轻量过程执行文件，无进化协议。用户仍可手动编辑 `.claude/commands/` 下的文件积累项目规范。
 
 ---
 
@@ -831,25 +850,20 @@ source: claude-skill-evo
 
 ```markdown
 ---
-name: {prefix}-commit
-description: >
-  {项目名} 代码提交工作流。精确暂存、VERSION 管理、生成规范提交信息、自动推送。
-  触发词：提交代码、git commit、commit、提交、commit message。
-version: 1.0.0
-source: claude-skill-evo
+description: 代码提交工作流。精确暂存、VERSION 管理、生成规范提交信息、自动推送。
+argument-hint: 可选：--major/--minor/--patch 强制版本类型
 ---
 
 # {项目名} 代码提交工作流
 
-**ARGUMENTS**: $ARGUMENTS（支持 `--major` / `--minor` / `--patch` 强制版本类型）
+**ARGUMENTS**: $ARGUMENTS
 
 ```
 /{prefix}-commit                   # 默认：提交所有 git 变更
 /{prefix}-commit --minor           # 强制 minor 版本
-/{prefix}-commit @src/foo.ts       # 仅提交指定文件（Claude 直接收到文件内容，跳过 git diff）
 ```
 
-> **职责边界**：本 skill 只负责提交。代码审查请在提交前单独运行 `{prefix}-review`。
+> **职责边界**：本 command 只负责提交。代码审查请在提交前单独运行 `/{prefix}-review`。
 
 ## 步骤 1：查看当前变更
 
@@ -949,11 +963,6 @@ Commit：<hash>
 推送：已推送
 ```
 
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新 commit type 涌现、message 语言/风格演变、工作流步骤优化}
 ```
 
 ### 模板：debug
@@ -962,50 +971,182 @@ Commit：<hash>
 ---
 name: {prefix}-debug
 description: >
-  {项目名} 深度 Bug 修复工作流。彻底修复，不打补丁，沉淀经验记录。
-  触发词：bug、报错、错误、修复、fix、崩溃、{框架特有错误关键词}。
+  {项目名} 深度 Debug 工作流。彻底修复，不打补丁，允许破坏性重构。
+  触发词：bug、报错、错误、修复、fix、崩溃、TypeError、报错日志、无法启动、debug、调试、{框架特有错误关键词}。
 version: 1.0.0
 source: claude-skill-evo
 ---
 
-# {项目名} 深度 Bug 修复
+# {项目名} 深度 Debug
 
-> 踩坑记录路径：`.claude/knowledge/pitfalls/`（由 digest skill 统一管理）
+> 踩坑记录库：`.claude/knowledge/pitfalls/`
+> 知识库索引：`.claude/knowledge/index.md`
 
 ## 核心原则
 
-**彻底修复，不打补丁。**
+**彻底修复，不打补丁。** 允许破坏性重构和跨文件大范围改动。宁可花更多时间找到根本原因，也不能用临时方案绕过问题。
 
-## 第 0 步：预扫描记录库
+---
 
-{标准预扫描流程}
+## 第 0 步：自动预扫描（必须执行，不可跳过）
+
+**拿到错误信息后，第一件事是搜索记录库，再开始调查代码。**
+
+### 关键词提取
+
+从错误信息中提取 2-3 个核心关键词（技术术语、模块名、错误类型）：
+
+\```bash
+grep -r "<关键词1>" .claude/knowledge/pitfalls/
+grep -r "<关键词2>" .claude/knowledge/pitfalls/
+\```
+
+### 命中时的处理
+
+找到匹配记录后：
+1. 展示记录摘要（标题 + 根本原因 + 修复要点）
+2. 对比当前错误与记录的异同
+3. 如果高度一致 → 直接应用记录中的修复方案，无需重新分析
+4. 如果部分相似 → 作为参考，结合当前上下文调整
+
+### 无匹配时
+
+继续执行第 1 步深度调查。
+
+---
+
+## 第 0.5 步：主动感知——改代码前先检查
+
+在以下情况，**进入涉及模块前先扫描对应记录**：
+
+{根据项目结构定制模块→扫描范围映射表，格式如下：}
+
+| 进入模块 | 扫描范围 |
+|---------|---------|
+| {核心模块路径1} | `knowledge/pitfalls/{分类}/` |
+| {核心模块路径2} | `knowledge/pitfalls/{分类}/` |
+| 依赖升级、配置变更 | `knowledge/pitfalls/` 全部 |
+
+如果该目录有记录，**主动告知用户**：「该区域有 N 条历史 bug 记录，已参考」。
+
+---
 
 ## 第 1 步：深度调查
 
+### 只在以下情况才主动问用户
+
+- 有多个修复方向，且选哪个会显著影响架构或数据——先陈述分析结论和候选方案，再让用户选
+- 修复需要用户配合做某些操作（如提供密钥、手动配置第三方服务）
+- 错误信息不足以定位问题，且读代码也看不出来——明确说「还需要 X 信息才能继续」
+
+### 读代码，不猜测
+
+- 用 `Grep` 和 `Glob` 追踪完整的调用链
+- 阅读涉及的所有相关文件（不只是报错行）
+- 分析最近的 git 提交，看是否有相关改动引入了 bug
+
+### 合格的根本原因分析
+
+- 明确指出是哪一行代码、哪个配置、哪个设计决策导致了问题
+- 解释为什么会出现（机制层面）
+- 说明为什么之前没有被发现
+
+**不接受**：「可能是…」「应该是…」「暂时先…」
+
 ### 常见 Bug 类型
 
-{根据技术栈定制}
+{根据技术栈定制，格式如下：}
 
-## 第 2 步：修复
+| 类型 | 表现 | 排查方向 |
+|------|------|---------|
+| {类型1} | {典型错误信息} | {关键排查路径} |
+| {类型2} | {典型错误信息} | {关键排查路径} |
 
-{标准修复流程}
+---
 
-## 第 3 步：沉淀
+## 第 2 步：制定修复方案
 
-### 记录路径
+### 方案评估
 
-踩坑记录统一写入知识库：`.claude/knowledge/pitfalls/YYYY-MM-DD-{topic}.md`
+| 维度 | 要求 |
+|------|------|
+| 彻底程度 | 从根本上解决，不绕过 |
+| 副作用 | 明确影响哪些模块 |
+| 代码质量 | 修完后代码更清晰 |
 
-### 修复后自动执行
+### 允许破坏性改动
 
-1. 创建 `.claude/knowledge/pitfalls/YYYY-MM-DD-{topic}.md`（使用 digest 踩坑模板）
-2. 更新 `.claude/knowledge/index.md`「踩坑记录」章节
-3. 更新本 skill「已知 Bug 速查索引」表
+如果根本原因是设计缺陷，**必须重构**：
+- 可以删除并重写整个模块
+- 可以修改多个文件的接口
+- 可以升级或替换依赖库
+{如果项目未上线，加入：- 可以变更数据库 schema（无需向后兼容）}
+
+### 方案确认
+
+描述改动范围 + 预期效果 + 可能副作用 → 等待用户批准。
+
+---
+
+## 第 3 步：执行修复
+
+- 分步骤执行，每步说明做了什么
+- 修改后检查关联文件
+- {根据技术栈加入编译/lint 检查项}
+
+---
+
+## 第 4 步：沉淀经验（必须执行，不可跳过）
+
+修复完成后，将经验写入记录库。
+
+### 记录路径规则
+
+踩坑记录统一写入知识库：
+
+\```
+.claude/knowledge/pitfalls/
+├── {分类1}/     {分类描述}
+├── {分类2}/     {分类描述}
+└── {分类3}/     {分类描述}
+\```
+
+{如果项目较小，可不分子目录，直接放 pitfalls/ 下。}
+
+文件名格式：`YYYY-MM-DD-kebab-case-描述.md`
+
+记录必须包含：
+1. **根本原因**（机制层面，非表面现象）
+2. **修复代码**（Before / After 对比）
+3. **预防措施**（规范约束 + 检查清单）
+
+### 写入后必须更新
+
+1. 本文件底部「已知 Bug 速查索引」表（添加新条目）
+2. `.claude/knowledge/index.md` 的「踩坑记录」章节
+
+### 记录完成后
+
+- 告知用户：「已记录到 `.claude/knowledge/pitfalls/<文件名>.md`」
+- 如果 bug 反映了需要写入 `CLAUDE.md` 的规范，提醒用户
+
+---
 
 ## 已知 Bug 速查索引
 
-| 关键词 | 分类 | 文件 | 摘要 |
-|--------|------|------|------|
+> 每次新增记录后必须同步更新此表。用于第 0 步预扫描的快速匹配。
+
+| 关键词 | 分类 | 文件（在 `.claude/knowledge/pitfalls/` 下） | 一句话摘要 |
+|--------|------|------|-----------|
+
+---
+
+## 附：{项目名} 高危 Bug 区域
+
+遇到以下关键词，**必须先查索引再动手**：
+
+{根据项目技术栈列出 5-8 个高频出问题的区域，格式：}
+- **{区域名}**：{具体风险描述}
 
 ---
 
@@ -1271,13 +1412,8 @@ source: claude-skill-evo
 
 ```markdown
 ---
-name: {prefix}-review
-description: >
-  {项目名} 代码审查工作流。多维度并行审查、项目规范检查、
-  迭代修复循环、审查报告。
-  触发词：代码审查、review、code review、CR、审查、检查代码。
-version: 1.0.0
-source: claude-skill-evo
+description: 代码审查工作流。多维度并行审查、项目规范检查、迭代修复循环、审查报告。
+argument-hint: 可选：@文件路径（审查指定文件）
 ---
 
 # {项目名} 代码审查工作流
@@ -1370,25 +1506,14 @@ source: claude-skill-evo
 {逐条列出}
 ```
 
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新审查规则发现、误报规则剔除}
 ```
 
 ### 模板：research
 
 ```markdown
 ---
-name: {prefix}-research
-description: >
-  {项目名} 技术调研工作流。并行多源信息采集、技术栈适配评估、
-  源码深度分析（shallow clone）、结构化对比报告。
-  触发词：技术调研、技术选型、对比、评估、research、选型、方案对比、
-  源码分析、参考代码、要不要用、适不适合。
-version: 1.0.0
-source: claude-skill-evo
+description: 技术调研工作流。并行多源信息采集、技术栈适配评估、源码深度分析、结构化对比报告。
+argument-hint: 调研对象名称，如 "zustand vs jotai"
 ---
 
 # {项目名} 技术调研工作流
@@ -1537,11 +1662,6 @@ git clone --depth 1 {repo_url} reference/{repo_name}
   ```
 - 清理不再需要的 `reference/` 源码（或保留供后续参考）
 
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：评估维度扩展、新的对比指标、源码分析模式优化}
 ```
 
 ### 模板：todo
