@@ -295,6 +295,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | `digest` | `{prefix}-digest` | 知识沉淀（决策、调研、踩坑、惯例、外部参考） |
 | `review` | `{prefix}-review` | 代码审查工作流（多 agent 并行审查） |
 | `research` | `{prefix}-research` | 技术选型评估 + 源码深度分析（含 shallow clone） |
+| `todo` | `{prefix}-todo` | 项目级待办管理，持久化到 `.claude/knowledge/todo.md` |
 
 ### 2.2 向用户展示规划
 
@@ -310,7 +311,8 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 ├── {prefix}-debug/SKILL.md    ✅ Bug 修复（含经验记录库）
 ├── {prefix}-digest/SKILL.md   ✅ 知识沉淀
 ├── {prefix}-review/SKILL.md   ✅ 代码审查
-└── {prefix}-research/SKILL.md ✅ 技术调研
+├── {prefix}-research/SKILL.md ✅ 技术调研
+└── {prefix}-todo/SKILL.md     ✅ 项目待办（持久化）
 
 同时生成：
 └── .claude/CLAUDE.md          # 项目级 Claude 指令
@@ -411,6 +413,11 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 #### `{prefix}-digest`：无需提问
 
 知识库固定在 `.claude/knowledge/`，无需用户选择。
+
+#### `{prefix}-todo`：无需提问
+
+待办文件固定在 `.claude/knowledge/todo.md`，无需用户选择。
+自我感知提醒默认开启。
 
 #### 其他 skill 的提问同理：给选项、给例子、给推荐、允许跳过。
 
