@@ -153,6 +153,9 @@ git remote -v 2>/dev/null                  # 远程仓库
 
 # 分析代码结构
 find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pycache__ | head -30
+
+# 检测知识库 ideas 状态（目录存在时）
+grep -rl "status: pending" .claude/knowledge/ideas/ 2>/dev/null | wc -l  # pending idea 数量
 ```
 
 **如果 $ARGUMENTS 指定了重点内容**（如"根据 README 完善"），额外深度扫描指定内容。
@@ -198,6 +201,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 📦 包管理器：[探测结果，如 "pnpm"]
 🐳 Docker：[有/无]
 🔄 CI/CD：[探测结果]
+💡 待评估想法：[X 条（若 .claude/knowledge/ideas/ 不存在则省略此行）]
 📛 推荐前缀：[推断结果]（来源：[推断来源，如 "package.json name"]）
 
 请确认以上信息是否正确，并回答以下问题：
