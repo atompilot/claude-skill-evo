@@ -11,15 +11,9 @@
   "plugins": [
     {
       "name": "claude-skill-evo",
-      "description": "Scans your project, asks smart questions, and forges a complete skill system tailored to your tech stack — with built-in self-evolution. Every skill learns from corrections, detects staleness, and proposes updates. Run /skill-evo once to initialize, run it again to improve. Supports 16 skill types across 7 languages.",
+      "description": "Scans your project, asks smart questions, and forges a complete skill system tailored to your tech stack — with built-in self-evolution. Every skill learns from corrections, detects staleness, and proposes updates. Run /skill-evo once to initialize, run it again to improve, run /skill-evo review to audit quality. Supports 16 skill types across 7 languages.",
       "source": "./",
       "skills": ["./skills/claude-skill-evo"]
-    },
-    {
-      "name": "skill-review",
-      "description": "Audits your project's SKILL.md files for quality, consistency, and safety. Runs 4 parallel agents checking structure, actionability, cross-skill consistency, and security. Works standalone or alongside skill-evo.",
-      "source": "./",
-      "skills": ["./skills/skill-review"]
     }
   ]
 }
