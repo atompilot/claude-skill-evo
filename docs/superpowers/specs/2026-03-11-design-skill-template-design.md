@@ -152,16 +152,21 @@
 
 ---
 
-## 体积估算
+## 体积说明
 
-| 项目 | 行数 |
-|------|------|
-| 现有 SKILL.md | ~300-400 行 |
-| 新增：检测逻辑 | ~20 行 |
-| 新增：三平台生成指令 | ~120 行 |
-| **预计总量** | **~450-550 行 / ~8-10KB** |
+实际量测：`skills/claude-skill-evo/SKILL.md` 当前为 3,398 行 / 97KB。
 
-15KB 限制内安全。
+原 brainstorming 估算（300-400 行）基于错误假设，已废弃。
+
+新增内容估算：
+| 新增项目 | 行数 |
+|---------|------|
+| Phase 1 嗅探步骤 | ~30 行 |
+| Phase 2 分支 | ~10 行 |
+| Design Skill 生成指南（三平台） | ~130 行 |
+| **合计新增** | **~170 行 / ~5KB** |
+
+新增内容相对于 97KB 基准体积，增量合理，不需要压缩现有内容。
 
 ---
 
@@ -178,4 +183,4 @@
 1. `claude-skill-evo` 在 Splaz（RN）项目中运行，能自动扫描 `design.ts` 并生成含实际 token 的 design skill
 2. 在有 react 依赖但无 token 文件的 Web 项目中运行（平台命中，token 扫描无结果），能生成含占位符的 design skill 框架
 3. 在非 UI 项目（如纯 CLI 工具，package.json 无 react/vue/next/expo/react-native）中运行，不生成 design skill，流程正常
-4. 主 SKILL.md 体积 ≤ 15KB
+4. 主 SKILL.md 新增内容 ≤ 200 行（实际文件已为 97KB，新增量合理即可）
