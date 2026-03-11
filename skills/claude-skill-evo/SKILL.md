@@ -284,9 +284,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 
 ### 2.1 Skill 模板库
 
-根据收集到的项目信息，从以下模板中选择适用的 skill：
-
-#### 通用 Skills（几乎所有项目都需要）
+根据收集到的项目信息，从以下模板生成全套 skill：
 
 | Skill 模板 | 生成名 | 内容 |
 |-----------|--------|------|
@@ -295,13 +293,8 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | `debug` | `{prefix}-debug` | 深度调试工作流 + 经验记录库 |
 | `skill` | `{prefix}-skill` | 元技能，管理所有 skills，含进化引擎 |
 | `digest` | `{prefix}-digest` | 知识沉淀（决策、调研、踩坑、惯例、外部参考） |
-
-#### 条件 Skills（用户选择）
-
-| 条件 | Skill 模板 | 内容 |
-|------|-----------|------|
-| 需要代码审查 | `review` | 代码审查工作流（多 agent 并行审查） |
-| 需要技术调研 | `research` | 技术选型评估 + 源码深度分析（含 shallow clone） |
+| `review` | `{prefix}-review` | 代码审查工作流（多 agent 并行审查） |
+| `research` | `{prefix}-research` | 技术选型评估 + 源码深度分析（含 shallow clone） |
 
 ### 2.2 向用户展示规划
 
@@ -311,21 +304,20 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 根据你的项目信息，我建议锻造以下 skills：
 
 📂 .claude/skills/
-├── {prefix}-skill/SKILL.md    ✅ 元技能（推荐）
-├── {prefix}-dev/SKILL.md      ✅ 本地开发（推荐）
-├── {prefix}-commit/SKILL.md   ✅ Git 提交（推荐）
-├── {prefix}-debug/SKILL.md    ✅ Bug 修复（推荐）
-├── {prefix}-digest/SKILL.md   ✅ 知识沉淀（推荐）
-├── {prefix}-review/SKILL.md   ⚡ 代码审查（你提到了这个需求）
-└── {prefix}-research/SKILL.md ⚡ 技术调研（你提到了这个需求）
+├── {prefix}-skill/SKILL.md    ✅ 元技能（含进化引擎）
+├── {prefix}-dev/SKILL.md      ✅ 本地开发
+├── {prefix}-commit/SKILL.md   ✅ Git 提交
+├── {prefix}-debug/SKILL.md    ✅ Bug 修复（含经验记录库）
+├── {prefix}-digest/SKILL.md   ✅ 知识沉淀
+├── {prefix}-review/SKILL.md   ✅ 代码审查
+└── {prefix}-research/SKILL.md ✅ 技术调研
 
 同时生成：
 └── .claude/CLAUDE.md          # 项目级 Claude 指令
 
-✅ = 推荐  ⚡ = 可选
 🧬 所有 skill 将内置「自我进化协议」
 
-要增加或去掉哪些？确认后开始锻造。
+要去掉哪些？确认后开始锻造。
 ```
 
 #### 优化模式
