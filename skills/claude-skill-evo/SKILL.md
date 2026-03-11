@@ -93,10 +93,9 @@ cat .claude/skills/*-skill/evolution.log 2>/dev/null
 | 用户提示词 | 优化方向 |
 |-----------|---------|
 | 无（空） | 全面巡检：检查过期内容、缺失 skill、可改进点 |
-| "补充 API 规范" | 重点检查/创建 api skill |
+| "补充调研" | 重点检查/创建 research skill |
 | "根据 README 完善" | 读取 README.md，对比 skills 内容，补充缺失信息 |
 | "更新 dev 命令" | 重点扫描代码中的实际命令，更新 dev skill |
-| "添加测试 skill" | 扫描测试框架，新建 test skill |
 
 **优化模式的输出格式**：
 
@@ -106,14 +105,10 @@ cat .claude/skills/*-skill/evolution.log 2>/dev/null
 现有 skills：
   ✅ {prefix}-dev      v1.0.2  — 健康
   ✅ {prefix}-commit   v1.0.0  — 健康
-  ⚠️ {prefix}-bugfix   v1.0.1  — 发现 1 处过期内容
-  ✅ {prefix}-api      v1.0.0  — 健康
-
+  ⚠️ {prefix}-debug   v1.0.1  — 发现 1 处过期内容
 发现的改进机会：
-  1. 🆕 检测到项目使用了 Vitest，但没有 test skill → 建议创建
-  2. 🔄 {prefix}-bugfix 中 records/ 路径引用与实际不符 → 建议更新
-  3. 📝 README.md 中有启动命令，但 dev skill 中缺少 → 建议补充
-  4. 🆕 检测到 docker-compose.yml，但没有 cloud skill → 建议创建
+  1. 🔄 {prefix}-debug 中踩坑记录路径与知识库不一致 → 建议更新
+  2. 📝 README.md 中有启动命令，但 dev skill 中缺少 → 建议补充
 
 要处理哪些？（输入编号，如 "1,3" / "全部" / "跳过"）
 ```
@@ -235,7 +230,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 
 1. **给你的 skill 起个前缀名**？
    💡 这个前缀会出现在所有命令中，比如你输入 "myapp"，就会生成：
-   /myapp-dev（开发）、/myapp-commit（提交）、/myapp-bugfix（修复）
+   /myapp-dev（开发）、/myapp-commit（提交）、/myapp-debug（调试）
    建议用项目名的缩写，3-8 个字符，全小写。
 ```
 
@@ -252,12 +247,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
    💡 如果还没确定也没关系，选"未定"即可，后续再执行 /skill-evo 补充。
    [Vercel / AWS / Fly.io / 自建服务器 / Docker / 未定]
 
-6. **测试框架**（如有）：
-   💡 如果目前没有测试但希望建立测试规范，也可以选一个——
-   我会帮你生成测试 skill 作为起步指南。
-   [Jest / Vitest / pytest / go test / XCTest / 无 / 想建立但还没选]
-
-7. **Git 提交风格**：
+6. **Git 提交风格**：
    💡 如果你不确定，我推荐 Conventional Commits——它是目前最主流的规范，
    格式是 `feat: 添加用户登录` / `fix: 修复支付bug`，
    好处是能自动生成 changelog、方便 code review。
@@ -268,13 +258,10 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 8. **有没有希望 Claude 帮你规范化的工作流？**
    💡 以下是常见的选择，根据你的项目勾选即可（可多选）：
    a) 📋 代码审查 — 提交前自动检查代码质量、安全、规范
-   b) 🔌 API 设计 — 统一接口风格、错误码、认证方式
-   c) 🗄️ 数据库迁移 — Schema 变更有流程保障，防止数据丢失
-   d) 🧪 测试规范 — 明确测试策略、覆盖率要求
-   e) 🔬 技术调研 — 结构化的技术选型评估报告
-   f) 📖 参考代码分析 — 阅读开源代码时有系统化的分析流程
-   g) 🧫 实验管理 — AI/ML 实验的设计、执行、记录（AI 项目适用）
-   h) 其他 — 请描述，我来判断是否适合做成 skill
+   b) 🧪 测试规范 — 明确测试策略、覆盖率要求
+   c) 🔬 技术调研 — 结构化的技术选型评估报告
+   d) 📖 参考代码分析 — 阅读开源代码时有系统化的分析流程
+   e) 其他 — 请描述，我来判断是否适合做成 skill
 
    不确定的话也没关系，先不选——后面再执行 /skill-evo 时可以补充，
    或者 skill 的进化协议也会在使用中自动发现并提议。
@@ -291,44 +278,6 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | **用具体例子引导** | 比起抽象描述，例子更能帮用户对号入座 |
 | **不追问** | 用户回答"不确定"或跳过时，用合理默认值，不要反复追问 |
 
-### 1.4 设计系统嗅探（自动，每次都做）
-
-在 Phase 1 扫描完成后，额外检测是否存在设计系统，以决定是否生成 design skill。
-
-**平台检测规则：**
-
-注 1：检查 package.json 时，范围为 dependencies + devDependencies + peerDependencies 合集。
-注 2：以下检测互斥，首个命中即停止，不继续检测后续平台。
-
-```bash
-# 1. React Native / Expo（主信号：expo 包；备用：react-native 包）
-grep -E '"expo"|"react-native"' package.json 2>/dev/null
-
-# 2. Web（react/vue/next 存在，且 expo 和 react-native 均不存在）
-grep -E '"react"|"vue"|"next"' package.json 2>/dev/null
-# 仅在步骤 1 完全未命中时才检查此项
-
-# 3. SwiftUI（.xcodeproj 存在，或 *.swift 文件中有 import SwiftUI）
-ls *.xcodeproj 2>/dev/null
-grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head -1
-
-# 4. 未命中任何平台 → DESIGN_PLATFORM=none，跳过，不生成 design skill
-```
-
-**Token 文件候选（命中平台后按序尝试，取首个存在的文件）：**
-
-| 平台 | 候选路径（优先级从高到低） | Fallback glob（深度 ≤ 3 层，取前 2 个） |
-|------|--------------------------|----------------------------------------|
-| RN/Expo | `src/lib/design.ts` → `src/theme.ts` → `src/styles/tokens.ts` → `src/theme/colors.ts` → `constants/Colors.ts` | `**/theme*.ts`, `**/color*.ts`, `**/token*.ts` |
-| Web | `tailwind.config.ts` → `tailwind.config.js` → `src/tokens.json` → `src/styles/tokens.css` → `src/theme/index.ts` | `**/token*.{ts,js,json,css}`, `**/theme*.{ts,js}` |
-| SwiftUI | `*/DesignSystem/*.swift` → `*/Theme/*.swift` → `*/Tokens/*.swift` | `**/*Color*.swift`, `**/*Token*.swift` |
-
-**传递给 Phase 2：**
-- `DESIGN_PLATFORM`：`rn` / `web` / `swiftui` / `none`
-- `DESIGN_TOKEN_FILES`：扫描到的 token 文件路径列表（可为空列表）
-
-> 重要：`DESIGN_PLATFORM ≠ none` 即进入 design skill 生成流程，即使 `DESIGN_TOKEN_FILES` 为空（此时所有 token 字段使用占位符 `{{KEY: 说明}}`）。
-
 ---
 
 ## Phase 2: Skill 规划
@@ -343,29 +292,16 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
 |-----------|--------|------|
 | `dev` | `{prefix}-dev` | 本地开发命令、环境配置、端口分配 |
 | `commit` | `{prefix}-commit` | Git 提交规范（Conventional Commits） |
-| `bugfix` | `{prefix}-bugfix` | 深度 Bug 修复工作流 + 经验记录库 |
+| `debug` | `{prefix}-debug` | 深度调试工作流 + 经验记录库 |
 | `skill` | `{prefix}-skill` | 元技能，管理所有 skills，含进化引擎 |
-| `evolve` | `{prefix}-evolve` | 手动触发进化分析，跨会话积累优化 |
-| `digest` | `{prefix}-digest` | 查看进化摘要和进化状态 |
+| `digest` | `{prefix}-digest` | 知识沉淀（决策、调研、踩坑、惯例、外部参考） |
 
-#### 条件 Skills（根据技术栈选择）
+#### 条件 Skills（用户选择）
 
 | 条件 | Skill 模板 | 内容 |
 |------|-----------|------|
-| 有后端 API | `api` | API 路由规范、错误处理、认证 |
-| 有前端 | `frontend` | 组件规范、状态管理、Design Token |
-| 有移动端 | `mobile` | React Native / Swift / Flutter 规范 |
-| 有数据库 | `db` | Schema 设计、迁移规范、查询优化 |
-| 有 Docker/部署 | `cloud` | 部署流程、环境管理、监控 |
-| 有测试框架 | `test` | 测试规范、测试命令 |
 | 需要代码审查 | `review` | 代码审查工作流（多 agent 并行审查） |
 | 需要技术调研 | `research` | 技术选型评估 + 源码深度分析（含 shallow clone） |
-| 有参考代码目录 | `ref` | 参考源码分析工作流（轻量，纯阅读） |
-| 有 AI/ML 相关 | `experiment` | 实验设计与执行 |
-| 有 Admin 后台 | `admin` | 后台管理开发规范 |
-| 有产品设计需求 | `product` | 产品设计文档索引、功能模块管理、设计规范 |
-| 有设计系统（Phase 1 嗅探命中，`DESIGN_PLATFORM ≠ none`，即使 `DESIGN_TOKEN_FILES` 为空也生成） | `design` | Design Token 速查、Light/Dark 规范、禁止事项（空 token list 时全部使用占位符） |
-| Monorepo | `migration` | 跨包迁移规范 |
 
 ### 2.2 向用户展示规划
 
@@ -378,20 +314,16 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
 ├── {prefix}-skill/SKILL.md    ✅ 元技能（推荐）
 ├── {prefix}-dev/SKILL.md      ✅ 本地开发（推荐）
 ├── {prefix}-commit/SKILL.md   ✅ Git 提交（推荐）
-├── {prefix}-bugfix/SKILL.md   ✅ Bug 修复（推荐）
-├── {prefix}-api/SKILL.md      ✅ API 规范（检测到后端框架）
-├── {prefix}-db/SKILL.md       ✅ 数据库规范（检测到数据库）
+├── {prefix}-debug/SKILL.md    ✅ Bug 修复（推荐）
+├── {prefix}-digest/SKILL.md   ✅ 知识沉淀（推荐）
 ├── {prefix}-review/SKILL.md   ⚡ 代码审查（你提到了这个需求）
-└── {prefix}-test/SKILL.md     ⚡ 测试规范（检测到测试框架）
+└── {prefix}-research/SKILL.md ⚡ 技术调研（你提到了这个需求）
 
 同时生成：
-├── .claude/CLAUDE.md          # 项目级 Claude 指令
-└── .gitignore                 # 更新（如果需要）
+└── .claude/CLAUDE.md          # 项目级 Claude 指令
 
 ✅ = 推荐  ⚡ = 可选
 🧬 所有 skill 将内置「自我进化协议」
-# 若 Phase 1 嗅探命中设计系统，自动追加：
-# └── {prefix}-design/SKILL.md   🎨 Design Token 规范（平台：{DESIGN_PLATFORM}）
 
 要增加或去掉哪些？确认后开始锻造。
 ```
@@ -401,16 +333,11 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
 ```
 基于巡检结果，本次计划执行以下操作：
 
-🆕 新建：
-  1. {prefix}-test/SKILL.md — 检测到 Vitest，建议创建测试规范
-
 🔄 更新：
-  2. {prefix}-dev/SKILL.md — README 中有新的启动命令，补充到 dev skill
-  3. {prefix}-bugfix/SKILL.md — 修复 records/ 路径引用
+  1. {prefix}-dev/SKILL.md — README 中有新的启动命令，补充到 dev skill
+  2. {prefix}-debug/SKILL.md — 更新踩坑记录路径至知识库
 
 📝 完善：
-  4. {prefix}-api/SKILL.md — 根据代码中的错误处理模式，充实 API 规范
-
 确认要执行哪些？（编号 / 全部 / 跳过）
 ```
 
@@ -443,56 +370,6 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
    💡 {如果检测到 docker-compose: "我看到你有 docker-compose.yml，
    里面的服务需要先启动吗？" / 如果没有: "比如本地数据库、Redis、
    消息队列等——如果都不需要，直接跳过"}
-```
-
-#### `{prefix}-api` 要问的：
-
-```
-🔌 关于 API 规范：
-
-1. 错误处理用什么模式？
-   💡 常见做法，看哪个最接近你的情况：
-   a) 标准 HTTP 状态码 + JSON body（最常见，如 `{ "error": "Not Found" }`）
-   b) 自定义错误码（如 `{ "code": 10001, "message": "用户不存在" }`）
-   c) 框架内置（如 tRPC error、FastAPI HTTPException）
-   d) 还没统一 — 💡 建议选 (a) 或 (b)，我帮你在 skill 中定好规范
-   {如果扫描到代码中的错误处理模式: "我在代码中看到你用的是 [模式]，以此为准吗？"}
-
-2. 认证方案？
-   💡 如果还没实现认证，告诉我你**计划用**哪种，我先写进规范：
-   a) JWT（前后端分离最常用）
-   b) Session/Cookie（传统服务端渲染）
-   c) OAuth 第三方登录（Google/GitHub 等）
-   d) API Key（面向开发者的 API）
-   e) 还没想好 — 💡 我先留个占位，下次 /skill-evo 时再补充
-```
-
-#### `{prefix}-db` 要问的：
-
-```
-🗄️ 关于数据库：
-
-1. ORM 用的什么？
-   💡 根据你的技术栈 [{框架名}]，常见搭配是：
-   {TypeScript: "Drizzle（轻量）/ Prisma（全能）/ TypeORM（老牌）"}
-   {Python: "SQLAlchemy（最主流）/ Django ORM / Tortoise ORM"}
-   {Go: "GORM（最常用）/ Ent / sqlx（偏裸 SQL）"}
-   {如果从依赖中检测到: "我在依赖中看到了 [ORM名]，是用这个吗？"}
-   如果直接写裸 SQL 也可以，告诉我就行。
-
-2. 迁移方式？
-   💡 简单说就是"数据库结构变了怎么更新"：
-   a) 自动迁移 — ORM 检测到代码变化自动同步（开发方便，生产慎用）
-   b) 手动迁移文件 — 每次写 migration 文件（生产安全，推荐）
-   c) push 命令 — 如 `prisma db push`、`drizzle-kit push`（适合早期快速迭代）
-   d) 不确定 — 💡 如果项目还在早期，建议先用 (c)，稳定后切 (b)
-
-3. 主键策略？
-   💡 简单选择：
-   a) 自增 ID — 简单直接，但分布式环境不好用
-   b) UUID — 全局唯一，URL 安全，推荐大多数项目
-   c) ULID/cuid — 有序 + 全局唯一，性能更好
-   d) 不确定 — 💡 新项目建议用 UUID，够用且通用
 ```
 
 #### `{prefix}-commit` 要问的：
@@ -539,25 +416,15 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
    c) 不确定 — 💡 建议选 (b)，多看一层关联很有价值
 ```
 
-#### `{prefix}-product` 要问的：
+#### `{prefix}-digest` 要问的：
 
 ```
-📦 关于产品设计文档：
+📝 关于知识沉淀：
 
-1. 用一句话描述产品的核心定位？
-   💡 举例：
-   - "面向北美市场的社交+游戏化应用"
-   - "B2B SaaS 项目管理工具"
-   - "个人健康追踪 iOS 应用"
-
-2. 目前已有哪些功能模块？（列举主要的即可）
-   💡 比如：用户认证、内容发布、消息系统、支付……
-   如果还在规划阶段，告诉我计划中的模块也行。
-
-3. 产品文档的维护者？
-   a) 我自己 — 产品和开发都是我
-   b) 有专门的产品经理 — skill 会侧重冲突处理和协作规范
-   c) 团队协作 — 多人共同维护
+1. 知识库存储路径？
+   💡 默认是 `.claude/knowledge/`，放在 .claude 目录下统一管理。
+   如果你的项目已有类似目录（如 `docs/adr/`、`notes/`），可以告诉我复用。
+   （回车确认默认 / 输入自定义路径）
 ```
 
 #### 其他 skill 的提问同理：给选项、给例子、给推荐、允许跳过。
@@ -581,8 +448,7 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
 2. .claude/skills/{prefix}-skill/SKILL.md  (~150 行，含进化引擎)
 3. .claude/skills/{prefix}-dev/SKILL.md    (~100 行)
 4. .claude/skills/{prefix}-commit/SKILL.md (~60 行)
-5. .claude/skills/{prefix}-bugfix/SKILL.md (~150 行，含经验记录库)
-6. .claude/skills/{prefix}-api/SKILL.md    (~100 行)
+5. .claude/skills/{prefix}-debug/SKILL.md (~150 行，含经验记录库)
 ...
 
 是否开始锻造？（Y/直接回车 = 生成全部）
@@ -593,12 +459,9 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
 ```
 即将执行以下变更：
 
-🆕 新建：
-  1. .claude/skills/{prefix}-test/SKILL.md
-
 🔄 更新（仅修改标注的部分，其余不动）：
-  2. {prefix}-dev/SKILL.md — 「常用命令速查」章节补充 2 条命令
-  3. {prefix}-bugfix/SKILL.md — 修复 records/ 路径
+  1. {prefix}-dev/SKILL.md — 「常用命令速查」章节补充 2 条命令
+  2. {prefix}-debug/SKILL.md — 更新踩坑记录路径至知识库
 
 是否执行？（Y/直接回车 = 全部执行）
 ```
@@ -611,12 +474,35 @@ grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head
 
 1. **CLAUDE.md**（最先，因为 skills 会引用它）
 2. **{prefix}-skill**（元技能，包含目录速查表 + 进化引擎）
-3. **{prefix}-evolve + {prefix}-digest**（进化触发 + 进化摘要查看）
+3. **{prefix}-digest**（知识沉淀）
 4. **其他 skills**（按依赖顺序，每个注入进化协议）
-5. **进化系统配置**（hooks + 脚本 + 目录结构）
-6. **.gitignore 更新**（追加，不覆盖）
+5. **知识库初始化**（创建目录结构 + 空索引）
+6. **进化系统配置**（hooks + 脚本 + 目录结构）
+7. **.gitignore 更新**（追加，不覆盖）
 
-### 4.1.1 进化系统配置（首次初始化时自动执行）
+### 4.1.1 知识库初始化（首次初始化时自动执行）
+
+```bash
+mkdir -p {knowledge_path}/{decisions,research,pitfalls,conventions,references}
+```
+
+创建 `{knowledge_path}/index.md`：
+
+```markdown
+# {项目名} 知识库索引
+
+## 技术决策
+
+## 调研结论
+
+## 踩坑记录
+
+## 隐式规范
+
+## 外部参考
+```
+
+### 4.1.2 进化系统配置（首次初始化时自动执行）
 
 创建进化系统的基础设施：
 
@@ -718,6 +604,13 @@ reference/
 - **用户明确说"记住"、"以后都这样"** → 提议写入 skill
 
 修改 skill 前必须向用户确认，绝不擅自修改。
+
+## 知识沉淀
+
+对话中出现以下内容时，提议使用 `/{prefix}-digest` 沉淀：
+- 做出了技术决策（选型、架构方案）→ 建议记录到 decisions/
+- 完成了技术调研或深度分析 → 建议记录到 research/
+- 发现了项目的隐式惯例 → 建议记录到 conventions/
 ```
 
 ### 4.4 Skill 生成规则
@@ -745,49 +638,11 @@ source: claude-skill-evo
 | **有触发词** | description 必须包含多个触发关键词 |
 | **有进化协议** | 每个 skill 末尾注入自我进化协议；CLAUDE.md 包含进化提示 |
 
-### 4.5 Bugfix Skill 特殊处理
+### 4.5 Debug Skill 与知识库集成
 
-bugfix skill 需要额外创建记录库目录：
+debug skill 的踩坑记录写入 `{knowledge_path}/pitfalls/`，格式由 digest skill 定义。
 
-```bash
-mkdir -p .claude/skills/{prefix}-bugfix/records
-```
-
-并生成 `records/template.md`：
-
-```markdown
-# Bug 记录：{标题}
-
-**日期**：YYYY-MM-DD
-**分类**：{api/frontend/db/infra/common}
-**关键词**：{用于预扫描匹配}
-
-## 错误现象
-
-{描述}
-
-## 根本原因
-
-{机制层面的分析}
-
-## 修复方案
-
-### Before
-
-```{lang}
-{修复前代码}
-```
-
-### After
-
-```{lang}
-{修复后代码}
-```
-
-## 预防措施
-
-- [ ] {规范约束}
-```
+知识库目录在 Phase 4.1 中统一创建，debug skill 无需单独创建 records 目录。
 
 ---
 
@@ -863,13 +718,13 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 |-----------|--------|---------|
 | `dev` | 新命令、环境变量、依赖服务变化 | 15KB |
 | `commit` | commit type 涌现、message 风格演变 | 10KB |
-| `bugfix` | 每次修复自动沉淀记录、更新速查索引 | 20KB（含 records） |
+| `debug` | 每次调试自动沉淀到 knowledge/pitfalls、更新速查索引 | 15KB |
+| `digest` | 新知识类型需求、索引结构优化、模板字段补充 | 15KB |
 | `skill`（元技能） | 新 skill 创建时更新目录表、跨 skill 一致性 | 15KB |
-| `api` | 新端点模式、错误码、认证方案变更 | 15KB |
-| `db` | Schema 变更、查询模式、迁移经验 | 15KB |
 | `review` | 新审查规则、误报规则剔除 | 15KB |
 | `test` | 新测试模式、覆盖率、断言风格 | 15KB |
 | `research` | 评估维度扩展、对比指标 | 15KB |
+| `promote` | 新渠道发现、推广效果反馈、README 优化点 | 15KB |
 
 ---
 
@@ -950,11 +805,11 @@ source: claude-skill-evo
 {按注入模板生成，侧重点：新 commit type 涌现、message 风格演变}
 ```
 
-### 模板：bugfix
+### 模板：debug
 
 ```markdown
 ---
-name: {prefix}-bugfix
+name: {prefix}-debug
 description: >
   {项目名} 深度 Bug 修复工作流。彻底修复，不打补丁，沉淀经验记录。
   触发词：bug、报错、错误、修复、fix、崩溃、{框架特有错误关键词}。
@@ -964,7 +819,7 @@ source: claude-skill-evo
 
 # {项目名} 深度 Bug 修复
 
-> 记录库路径：`.claude/skills/{prefix}-bugfix/records/`
+> 踩坑记录路径：`{knowledge_path}/pitfalls/`（由 digest skill 统一管理）
 
 ## 核心原则
 
@@ -988,10 +843,13 @@ source: claude-skill-evo
 
 ### 记录路径
 
-```
-.claude/skills/{prefix}-bugfix/records/
-├── {根据项目模块拆分子目录}
-```
+踩坑记录统一写入知识库：`{knowledge_path}/pitfalls/YYYY-MM-DD-{topic}.md`
+
+### 修复后自动执行
+
+1. 创建 `{knowledge_path}/pitfalls/YYYY-MM-DD-{topic}.md`（使用 digest 踩坑模板）
+2. 更新 `{knowledge_path}/index.md`「踩坑记录」章节
+3. 更新本 skill「已知 Bug 速查索引」表
 
 ## 已知 Bug 速查索引
 
@@ -1004,7 +862,7 @@ source: claude-skill-evo
 
 {按注入模板生成，侧重点：每次修复自动沉淀记录、更新速查索引}
 
-**Bugfix 专属进化**：每次 bug 修复完成后，必须将经验写入 `records/`、更新速查索引表。重复 bug 模式（≥2 次）提议写入预防规范。
+**Debug 专属进化**：每次调试修复完成后，必须将经验写入 `knowledge/pitfalls/`、更新速查索引表和知识库索引。重复问题模式（≥2 次）提议写入预防规范。
 ```
 
 ### 模板：skill (元技能)
@@ -1013,9 +871,10 @@ source: claude-skill-evo
 ---
 name: {prefix}-skill
 description: >
-  {项目名} Skill 管理元技能兼进化引擎。发现、检查、新建、更新所有 {prefix}-* skill。
+  {项目名} Skill 管理元技能兼进化引擎。发现、检查、新建、更新所有项目级 skill。
   跨 skill 一致性检查，驱动整个 skill 体系的进化。
-  触发词：skill 管理、查看 skill、skill 列表、新建 skill、更新 skill、skill 进化。
+  触发词：skill 管理、查看 skill、skill 列表、新建 skill、更新 skill、skill 进化、
+  进化、evolve、优化 skill、进化分析。
 version: 1.0.0
 source: claude-skill-evo
 ---
@@ -1030,7 +889,7 @@ source: claude-skill-evo
 
 ## 功能一：发现
 
-`ls .claude/skills/ | grep "^{prefix}-"`
+`ls .claude/skills/*/SKILL.md`（扫描所有项目级 skill，不限命名前缀）
 
 ## 功能二：健康检查
 
@@ -1051,12 +910,18 @@ source: claude-skill-evo
 
 作为元技能，负责驱动整个 skill 体系的进化：
 
-### 5.1 跨 Skill 一致性检查
+### 5.1 主动进化分析
 
-定期（或在 skill 更新时）检查：
-- 各 skill 中引用的路径是否一致
-- 各 skill 中引用的命令是否一致
-- 各 skill 中的术语是否统一
+当用户触发 `/{prefix}-skill 进化` 或 `/{prefix}-skill 回顾` 时：
+
+1. 读取所有 `.claude/skills/*/SKILL.md`（包括非 skill-evo 生成的 skill）
+2. 扫描项目现状（目录结构、package.json、配置文件等）
+3. 对比 skill 内容与项目现状，找出不一致
+4. 检查各 skill 体积（>12KB 警告）
+5. 检查跨 skill 一致性（术语、路径、命令是否统一）
+6. 检查是否有 `<!-- STALE: -->` 标记未处理
+7. 生成提议，逐条展示，等待用户确认
+8. 确认后写入 skill（version patch +1）
 
 ### 5.2 Skill 进化日志
 
@@ -1066,16 +931,8 @@ source: claude-skill-evo
 
 记录格式：
 ```
-[YYYY-MM-DD] {prefix}-{skill} v{old} → v{new}: {变更摘要}
+[YYYY-MM-DD] {skill-name} v{old} → v{new}: {变更摘要}
 ```
-
-### 5.3 Skill 体系回顾
-
-当用户触发 `/{prefix}-skill 回顾` 时：
-1. 扫描所有 skill 版本号
-2. 列出最近变更（从 evolution.log）
-3. 检查是否有 STALE 标记
-4. 提出整体优化建议
 
 ---
 
@@ -1086,766 +943,177 @@ source: claude-skill-evo
 **元技能专属**：作为元技能，额外关注进化策略本身是否需要调整——进化信号是否噪音太多、好的发现是否被忽略、各 skill 体积增长是否健康。
 ```
 
-### 模板：evolve
-
-```markdown
----
-name: {prefix}-evolve
-description: >
-  手动触发 Skill 进化分析。扫描所有 skill，对比项目现状，生成更新提议。
-  触发词：进化、evolve、优化 skill、skill 进化、skill 更新、进化分析。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# Skill 进化分析
-
-> 扫描现有 skill，对比项目现状，提议更新。日常工作中进化会自动发生，本命令用于主动触发全量检查。
-
-## 执行步骤
-
-1. 读取所有 `.claude/skills/{prefix}-*/SKILL.md`
-2. 扫描项目现状（目录结构、package.json、配置文件等）
-3. 对比 skill 内容与项目现状，找出不一致
-4. 检查各 skill 体积（>12KB 警告）
-5. 生成提议，逐条展示，等待用户确认
-6. 确认后写入 skill（version patch +1）
-
-## 提议展示格式
-
-对每条发现：
-- 说明在哪个 skill 的哪个章节发现了问题
-- 展示当前内容 vs 建议内容
-- 等待用户确认后再写入
-
-## 质量控制
-
-| 规则 | 说明 |
-|------|------|
-| 不重复 | 已存在于 skill 中的规范跳过 |
-| 矛盾检测 | 新规则与现有 skill 矛盾 → 展示冲突让用户选择 |
-| 体积守护 | 写入前检查目标 skill 体积；>12KB 警告，>15KB 先压缩 |
-| 具体可操作 | 新规则必须具体，有 Before/After 示例 |
-```
-
 ### 模板：digest
 
 ```markdown
 ---
 name: {prefix}-digest
 description: >
-  查看 Skill 体系状态。展示各 skill 版本、体积、最近变更记录。只读不修改。
-  触发词：digest、进化摘要、skill 状态、进化历史。
+  {项目名} 知识沉淀工作流。将技术决策、调研结论、踩坑记录、隐式惯例、外部参考
+  统一归档到项目知识库，跨会话持久化。
+  触发词：digest、沉淀、记录、知识、总结、归档、决策记录、经验、笔记。
 version: 1.0.0
 source: claude-skill-evo
 ---
 
-# Skill 体系状态
+# {项目名} 知识沉淀
 
-> 只读展示，不做任何修改。
+> 知识库路径：`{knowledge_path}/`
 
-## 执行步骤
+## 知识库结构
 
-1. 扫描 `.claude/skills/{prefix}-*/SKILL.md`，读取 frontmatter 的 name/version
-2. 统计各文件体积
-3. 用 `git log` 查看各 skill 最近变更
-4. 格式化展示
-
-## 输出格式
-
-列出每个 skill 的名称、版本、体积（标注是否超警戒线）、最近一次修改时间和提交摘要。
-末尾提示 `/{prefix}-evolve` 可触发主动进化分析。
+```
+{knowledge_path}/
+├── index.md              # 知识索引（按类型分章节）
+├── decisions/            # 技术决策记录
+├── research/             # 调研结论
+├── pitfalls/             # 踩坑记录（与 debug skill 共享）
+├── conventions/          # 发现的隐式规范
+└── references/           # 外部知识精炼摘要
 ```
 
-### 模板：api
+## 内容类型与模板
+
+所有文件统一命名：`YYYY-MM-DD-{topic}.md`
+
+### decisions/ — 技术决策
 
 ```markdown
----
-name: {prefix}-api
-description: >
-  {项目名} API 开发规范。路由结构、类型安全链路、错误处理、认证鉴权、
-  分页模式、文件上传、后台任务。
-  触发词：API、接口、路由、endpoint、错误处理、认证、分页、{框架名}。
-version: 1.0.0
-source: claude-skill-evo
----
+# 决策：{标题}
+**日期**：YYYY-MM-DD
+**状态**：✅ 已采纳 / ⏳ 待讨论 / ❌ 已废弃
 
-# {项目名} API 开发规范
+## 背景
+{为什么需要做这个决策}
 
-## 路由结构
-
-{根据框架生成路由组织方式}
-
-### 路由文件组织
-
-```
-{根据项目结构生成，如：}
-src/
-├── routes/        # 路由定义
-│   ├── user.ts
-│   └── order.ts
-├── middleware/    # 中间件
-├── validators/   # 请求验证
-└── services/     # 业务逻辑
-```
-
-## 类型安全链路
-
-{根据技术栈选择}
-
-### TypeScript (tRPC/Hono)
-- 从 schema → 路由 → 前端调用全链路类型安全
-- 使用 Zod 做运行时验证 + 类型推导
-
-### Python (FastAPI)
-- Pydantic model → 路由参数 → 响应模型
-- 使用 type hints 全链路类型检查
-
-### Go
-- 结构体定义 → handler 参数绑定 → JSON 响应
-
-## 错误处理
-
-### 错误分层
-
-| 层级 | 职责 | 示例 |
+## 方案对比
+| 方案 | 优点 | 缺点 |
 |------|------|------|
-| 业务错误 | 自定义错误类，带错误码 | `UserNotFound`, `PermissionDenied` |
-| 框架错误 | 转换为框架标准格式 | HTTP 状态码 + JSON body |
-| 未知错误 | 兜底处理，不暴露内部细节 | 500 + 通用错误信息 |
 
-### 自定义错误类模板
+## 结论
+{最终选择及理由}
 
-```{lang}
-{根据语言生成错误类示例}
+## 影响范围
+{哪些模块/文件受影响}
 ```
 
-### 错误码规范
+### pitfalls/ — 踩坑记录
 
-| HTTP 状态码 | 含义 | 使用场景 |
-|------------|------|---------|
-| 400 | Bad Request | 参数校验失败 |
-| 401 | Unauthorized | 未登录 |
-| 403 | Forbidden | 无权限 |
-| 404 | Not Found | 资源不存在 |
-| 409 | Conflict | 资源冲突（重复创建等） |
-| 422 | Unprocessable | 业务逻辑校验失败 |
-| 500 | Internal Error | 服务端未知错误 |
+```markdown
+# 踩坑：{标题}
+**日期**：YYYY-MM-DD
+**关键词**：{用于检索}
 
-## 认证与鉴权
+## 错误现象
+{描述}
 
-{根据用户选择的认证方案生成}
+## 根本原因
+{机制层面的分析}
 
-### 认证中间件
+## 修复方案
+{代码或操作步骤}
 
-```{lang}
-{认证中间件示例}
+## 预防措施
+- [ ] {规范约束}
 ```
 
-### 权限层级
+### research/ — 调研结论
 
-| 层级 | 说明 |
+```markdown
+# 调研：{标题}
+**日期**：YYYY-MM-DD
+
+## 结论
+{一句话结论}
+
+## 关键发现
+{要点列表}
+
+## 推荐方案
+{推荐什么、为什么}
+```
+
+### conventions/ — 隐式规范
+
+```markdown
+# 惯例：{标题}
+**日期**：YYYY-MM-DD
+**来源**：{从哪次对话/代码中发现的}
+
+## 规范内容
+{具体规范描述}
+
+## 示例
+{正确 vs 错误示例}
+```
+
+### references/ — 外部知识摘要
+
+```markdown
+# 参考：{标题}
+**日期**：YYYY-MM-DD
+**原始来源**：{URL 或文档名}
+
+## 摘要
+{精炼后的要点}
+
+## 与本项目的关联
+{如何应用到项目中}
+```
+
+## index.md 格式
+
+```markdown
+# {项目名} 知识库索引
+
+## 技术决策
+- YYYY-MM-DD [{标题}](decisions/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+
+## 调研结论
+- YYYY-MM-DD [{标题}](research/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+
+## 踩坑记录
+- YYYY-MM-DD [{标题}](pitfalls/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+
+## 隐式规范
+- YYYY-MM-DD [{标题}](conventions/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+
+## 外部参考
+- YYYY-MM-DD [{标题}](references/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+```
+
+## 操作流程
+
+### 写入知识
+
+1. 判断内容类型（决策/调研/踩坑/惯例/参考）
+2. 用对应模板创建 `{knowledge_path}/{type}/YYYY-MM-DD-{topic}.md`
+3. 更新 `{knowledge_path}/index.md` 对应章节
+
+### 查看知识
+
+1. 读取 `{knowledge_path}/index.md`
+2. 按类型或关键词筛选
+3. 读取具体文件展示详情
+
+---
+
+## 自我进化协议
+
+> 本 skill 在日常使用中自动进化。
+
+### 何时提议进化
+
+| 信号 | 行为 |
 |------|------|
-| 公开 | 无需登录 |
-| 已认证 | 需要有效 token |
-| 授权 | 需要特定角色/权限 |
+| 出现新的知识类型 | 提议新增子目录和模板 |
+| 索引结构不够清晰 | 提议优化 index.md 格式 |
+| 模板字段缺失 | 提议补充模板字段 |
+| 用户纠正分类 | 提议调整分类标准 |
 
-## 分页模式
+### Size Guard — ≤ 15KB
 
-{根据需求选择}
-
-### 游标分页（推荐大数据量）
-
-```{lang}
-{游标分页示例}
-```
-
-### 偏移分页（简单场景）
-
-```{lang}
-{偏移分页示例}
-```
-
-## 文件上传
-
-{如有文件上传需求}
-
-## 新增 API 检查清单
-
-- [ ] 路由路径符合 RESTful / RPC 命名规范
-- [ ] 请求参数有验证（schema / validator）
-- [ ] 错误处理完整（业务错误 + 未知错误）
-- [ ] 认证/鉴权中间件已挂载
-- [ ] 返回类型有明确定义
-- [ ] 必要的日志记录
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新端点模式、错误码扩展、认证方案变更}
-```
-
-### 模板：frontend
-
-```markdown
----
-name: {prefix}-frontend
-description: >
-  {项目名} 前端开发规范。组件结构、状态管理、Design Token、
-  路由导航、UI 模式、新页面检查清单。
-  触发词：前端、组件、页面、UI、样式、状态管理、路由、{框架名}。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} 前端开发规范
-
-## 目录结构
-
-```
-{根据框架生成，如：}
-src/
-├── components/     # 可复用组件
-│   ├── ui/         # 基础 UI 组件
-│   └── business/   # 业务组件
-├── pages/          # 页面组件
-├── hooks/          # 自定义 hooks
-├── stores/         # 状态管理
-├── styles/         # 全局样式/token
-├── utils/          # 工具函数
-└── types/          # 类型定义
-```
-
-## 组件规范
-
-### 命名规则
-
-| 类型 | 命名 | 示例 |
-|------|------|------|
-| 组件文件 | PascalCase | `UserCard.tsx` |
-| hooks | camelCase + use 前缀 | `useAuth.ts` |
-| 工具函数 | camelCase | `formatDate.ts` |
-| 样式文件 | 同组件名 | `UserCard.module.css` |
-
-### 组件结构模板
-
-```{lang}
-{根据框架生成组件模板}
-```
-
-## 状态管理
-
-{根据技术栈生成}
-
-### 状态分层
-
-| 层级 | 方案 | 适用场景 |
-|------|------|---------|
-| 组件内 | useState / ref | 仅当前组件使用 |
-| 跨组件 | Context / provide | 父子组件共享 |
-| 全局 | {状态库} | 多页面共享 |
-| 服务端 | {数据获取库} | API 数据缓存 |
-
-## Design Token
-
-{如有设计系统}
-
-### 颜色
-
-| Token | 值 | 用途 |
-|-------|---|------|
-| `--color-primary` | {色值} | 主色调 |
-| `--color-bg` | {色值} | 背景色 |
-| `--color-text` | {色值} | 正文色 |
-
-### 间距
-
-| Token | 值 | 用途 |
-|-------|---|------|
-| `--space-xs` | 4px | 紧凑间距 |
-| `--space-sm` | 8px | 小间距 |
-| `--space-md` | 16px | 标准间距 |
-| `--space-lg` | 24px | 大间距 |
-
-### 字体
-
-| Token | 大小 | 用途 |
-|-------|------|------|
-| `--text-xs` | 12px | 辅助信息 |
-| `--text-sm` | 14px | 正文 |
-| `--text-base` | 16px | 标准正文 |
-| `--text-lg` | 18px | 小标题 |
-
-## 路由与导航
-
-{根据框架的路由方案生成}
-
-## UI 模式速查
-
-| 模式 | 组件 | 使用场景 |
-|------|------|---------|
-| 列表 | List / Table | 数据展示 |
-| 表单 | Form | 数据录入 |
-| 弹窗 | Modal / Dialog | 确认操作 |
-| 加载 | Skeleton / Spinner | 等待数据 |
-| 空状态 | Empty | 无数据展示 |
-| 错误 | ErrorBoundary | 错误恢复 |
-
-## 新页面检查清单
-
-- [ ] 组件拆分合理（展示 vs 容器）
-- [ ] 使用 Design Token，禁止硬编码颜色/字号
-- [ ] 响应式适配（如有需求）
-- [ ] 加载状态和错误状态处理
-- [ ] 无障碍（a11y）基本支持
-- [ ] 路由注册
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新组件模式、Design Token 扩展、UI 规范演变}
-```
-
-### 模板：mobile
-
-```markdown
----
-name: {prefix}-mobile
-description: >
-  {项目名} 移动端开发规范。目录结构、导航模式、组件规范、
-  设计系统 Token、认证状态、文件处理、新页面检查清单。
-  触发词：移动端、App、iOS、Android、页面、导航、{框架名}。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} 移动端开发规范
-
-## 目录结构
-
-```
-{根据框架生成，如 React Native：}
-app/
-├── (tabs)/         # Tab 导航页面
-├── (auth)/         # 认证相关页面
-├── (modals)/       # 模态页面
-└── _layout.tsx     # 根布局
-components/
-├── ui/             # 基础 UI 组件
-└── business/       # 业务组件
-hooks/
-services/
-constants/
-```
-
-## 导航规范
-
-### 导航模式
-
-| 模式 | 使用场景 | 呈现方式 |
-|------|---------|---------|
-| Stack Push | 进入详情 | 从右滑入 |
-| Modal | 创建/编辑 | 从底部弹出 |
-| Tab Switch | 主要模块切换 | 底部 Tab 栏 |
-| Replace | 登录→首页 | 替换当前栈 |
-
-### 导航参数
-
-{根据框架生成导航参数传递方式}
-
-## 组件规范
-
-### 通用 Header
-
-{如项目有统一 Header 组件}
-
-### 列表组件
-
-- 长列表必须使用 FlatList / LazyColumn / UITableView
-- 禁止在 ScrollView 中嵌套大量子项
-- 分页加载使用 onEndReached / 无限滚动
-
-### 图片组件
-
-- 统一使用 {推荐的图片库}
-- 必须设置占位图和错误图
-- 远程图片使用缓存策略
-
-## 设计系统 Token
-
-### 颜色（支持暗色模式）
-
-| Token | Light | Dark | 用途 |
-|-------|-------|------|------|
-| `primary` | {色值} | {色值} | 主色调 |
-| `background` | {色值} | {色值} | 背景色 |
-| `text` | {色值} | {色值} | 正文色 |
-
-### 间距
-
-| Token | 值 | 用途 |
-|-------|---|------|
-| `xs` | 4 | 紧凑 |
-| `sm` | 8 | 小间距 |
-| `md` | 16 | 标准 |
-| `lg` | 24 | 大间距 |
-
-## 认证状态
-
-{认证状态管理方式}
-
-## 文件上传
-
-{移动端文件上传流程}
-
-## 新页面检查清单
-
-- [ ] 使用正确的导航呈现模式
-- [ ] 使用 Design Token，禁止硬编码
-- [ ] 安全区域适配（SafeAreaView / safeAreaInsets）
-- [ ] 加载/空/错误状态完整
-- [ ] 长列表使用虚拟化组件
-- [ ] 图片使用推荐库 + 缓存
-- [ ] 返回/关闭按钮正确
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新页面模式、导航变更、设计 Token 扩展}
-```
-
-### 模板：db
-
-```markdown
----
-name: {prefix}-db
-description: >
-  {项目名} 数据库规范。Schema 设计、表结构模式、主键策略、
-  索引规范、迁移流程、查询优化。
-  触发词：数据库、表、Schema、迁移、migration、SQL、ORM、{ORM名}。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} 数据库规范
-
-## 技术栈
-
-- 数据库：{数据库类型}
-- ORM：{ORM 名称}
-- 迁移工具：{迁移工具}
-
-## 通用字段规范
-
-### 主键
-
-{根据用户选择}
-- 策略：{UUID / 自增 / ULID}
-
-### 通用时间字段
-
-每张表必须包含：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `created_at` | timestamp | 创建时间，自动生成 |
-| `updated_at` | timestamp | 更新时间，自动更新 |
-| `deleted_at` | timestamp? | 软删除标记（如使用软删除） |
-
-### 字段命名
-
-| 规则 | 示例 |
-|------|------|
-| 使用 snake_case | `user_name`, `created_at` |
-| 布尔字段用 is_/has_ 前缀 | `is_active`, `has_verified` |
-| 外键用 _id 后缀 | `user_id`, `order_id` |
-| JSON 字段明确标注类型 | TypeScript: `$type<T>()` |
-
-## 表结构模式
-
-{根据项目需求选择适用模式}
-
-### 模式 A：1:1 拆分
-
-主表存核心标识，子表存特定领域数据。适用于字段过多需要分组的实体。
-
-### 模式 B：行为/交互记录
-
-记录用户行为、操作日志等。通常只增不改。
-
-### 模式 C：不可变账本
-
-财务流水、积分变动等。只插入，不更新，不删除。
-
-### 模式 D：每日记录
-
-统计快照、日报等按天聚合的数据。
-
-## 索引规范
-
-| 规则 | 说明 |
-|------|------|
-| 外键必须建索引 | 关联查询性能保障 |
-| WHERE 常用字段建索引 | 查询频率高的字段 |
-| 组合索引注意顺序 | 高选择性字段在前 |
-| 唯一约束用 unique index | 业务唯一性保障 |
-
-## 关系定义
-
-{根据 ORM 生成关系定义方式}
-
-## 迁移规范
-
-### 迁移流程
-
-1. 修改 schema 定义文件
-2. 生成迁移文件：`{迁移命令}`
-3. 检查生成的 SQL 是否符合预期
-4. 执行迁移：`{执行命令}`
-
-### 危险操作检查清单
-
-- [ ] DROP TABLE / DROP COLUMN 前确认数据已备份
-- [ ] ALTER TABLE 大表前评估锁表时间
-- [ ] 添加 NOT NULL 字段时设置默认值
-- [ ] 重命名字段需要确认所有引用已更新
-
-## 查询优化
-
-| 反模式 | 正确做法 |
-|--------|---------|
-| 循环内查询（N+1） | 使用 JOIN / 预加载 |
-| SELECT * | 明确列出需要的字段 |
-| 未加 LIMIT | 分页查询加 LIMIT |
-| 字符串拼接 SQL | 使用参数化查询 |
-
-## 文件组织
-
-```
-{根据 ORM 生成，如：}
-src/db/
-├── schema/         # 表定义
-├── migrations/     # 迁移文件
-├── queries/        # 自定义查询
-└── seed/           # 种子数据
-```
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：Schema 变更记录、新查询模式、迁移经验}
-```
-
-### 模板：cloud
-
-```markdown
----
-name: {prefix}-cloud
-description: >
-  {项目名} 云服务与部署规范。部署流程、环境管理、容器配置、
-  监控告警、CI/CD、基础设施检查。
-  触发词：部署、云服务、Docker、CI/CD、环境、监控、生产环境、{云平台名}。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} 云服务与部署规范
-
-## 部署架构
-
-| 组件 | 服务 | 说明 |
-|------|------|------|
-| 应用 | {部署平台} | {说明} |
-| 数据库 | {数据库服务} | {说明} |
-| 缓存 | {缓存服务} | {说明} |
-| 存储 | {对象存储} | {说明} |
-| CDN | {CDN 服务} | {说明} |
-
-## 环境管理
-
-| 环境 | 分支 | URL | 用途 |
-|------|------|-----|------|
-| local | — | localhost | 本地开发 |
-| dev | develop | {dev URL} | 开发联调 |
-| staging | staging | {staging URL} | 预发验证 |
-| prod | main | {prod URL} | 生产环境 |
-
-## Docker 配置
-
-{如使用 Docker}
-
-### docker-compose 规范
-
-```yaml
-name: {项目名}-{环境}  # 必须声明 name
-
-services:
-  {服务定义}
-```
-
-## CI/CD 流程
-
-{根据 CI/CD 工具生成}
-
-### 部署流水线
-
-```
-代码推送 → 自动测试 → 构建 → 部署预发 → 验证 → 部署生产
-```
-
-## 执行操作前的决策逻辑
-
-| 操作类型 | 影响范围 | 决策 |
-|---------|---------|------|
-| 读取/查询 | 只读 | 直接执行 |
-| 配置变更 | 单个服务 | 确认后执行 |
-| 数据变更 | 数据库 | 备份后执行 |
-| 删除/重建 | 多个服务 | 详细评估后执行 |
-
-## 基础设施检查清单
-
-- [ ] SSL 证书有效期
-- [ ] 数据库备份策略
-- [ ] 日志收集和保留策略
-- [ ] 监控告警配置
-- [ ] 环境变量管理（密钥不硬编码）
-- [ ] 水平扩展能力
-
-## 常用运维命令
-
-```bash
-{根据部署平台生成常用命令}
-```
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新服务上线、配置变更、运维经验沉淀}
-```
-
-### 模板：test
-
-```markdown
----
-name: {prefix}-test
-description: >
-  {项目名} 测试规范。测试策略、测试命令、断言规范、
-  Mock 策略、集成测试、覆盖率要求。
-  触发词：测试、test、单元测试、集成测试、覆盖率、mock、{测试框架名}。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} 测试规范
-
-## 测试框架
-
-- 框架：{测试框架}
-- 断言库：{断言库}（如不同于框架自带）
-- Mock 库：{Mock 库}
-
-## 测试策略
-
-| 层级 | 覆盖范围 | 占比 | 关注点 |
-|------|---------|------|--------|
-| 单元测试 | 函数/方法 | 70% | 逻辑正确性 |
-| 集成测试 | 模块间交互 | 20% | 接口契约 |
-| E2E 测试 | 完整流程 | 10% | 用户场景 |
-
-## 常用命令
-
-```bash
-{测试运行命令}         # 运行全部测试
-{单文件测试命令}       # 运行单个文件
-{覆盖率命令}           # 生成覆盖率报告
-{监听命令}             # 监听模式
-```
-
-## 文件组织
-
-```
-{根据项目习惯生成，如：}
-src/
-├── utils/
-│   ├── format.ts
-│   └── __tests__/
-│       └── format.test.ts
-tests/
-├── integration/     # 集成测试
-├── e2e/             # E2E 测试
-└── helpers/         # 测试辅助函数
-    └── _helpers.ts  # 共享 helper
-```
-
-## 命名规范
-
-| 类型 | 命名规则 | 示例 |
-|------|---------|------|
-| 测试文件 | `*.test.{ext}` 或 `*.spec.{ext}` | `user.test.ts` |
-| 测试描述 | 行为描述，非方法名 | `"应该返回已排序的列表"` |
-| 测试变量 | 语义化命名 | `validUser`, `expiredToken` |
-
-## 断言规范
-
-### 优先使用的断言
-
-```{lang}
-{根据测试框架生成常用断言示例}
-```
-
-### 反模式
-
-| 反模式 | 正确做法 |
-|--------|---------|
-| 无断言的测试 | 每个 test 至少一个断言 |
-| 过于宽泛的断言 | 断言具体的值和结构 |
-| 测试间相互依赖 | 每个测试独立运行 |
-| 硬编码时间等待 | 使用 await / retry |
-
-## Mock 策略
-
-| 类型 | 何时 Mock | 示例 |
-|------|----------|------|
-| 外部 API | 始终 Mock | HTTP 请求、第三方 SDK |
-| 数据库 | 单元测试 Mock，集成测试用真实 DB | ORM 查询 |
-| 时间 | 涉及时间逻辑时 | `Date.now()`, 定时器 |
-| 文件系统 | 涉及文件 I/O 时 | 读写文件 |
-
-## API / 集成测试模板
-
-```{lang}
-{根据项目框架生成集成测试示例}
-```
-
-## 测试数据
-
-{测试数据管理策略}
-
-### 测试账号
-
-{如有测试环境专用账号}
-
-### 测试文件
-
-{如需要测试文件，如上传测试}
-
-```
-tests/testfiles/
-├── sample.jpg
-├── sample.pdf
-└── sample.csv
-```
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新测试模式、覆盖率变化、断言风格演变}
+> index.md 体积守护：> 50 条时建议归档旧条目。
 ```
 
 ### 模板：review
@@ -1898,10 +1166,8 @@ source: claude-skill-evo
 
 {根据项目已有 skill 生成具体检查项}
 
-- 是否遵循 {prefix}-api 中的错误处理规范
-- 是否遵循 {prefix}-db 中的 Schema 规范
 - 是否遵循 {prefix}-commit 中的提交规范
-- 是否遵循 {prefix}-frontend/mobile 中的组件规范
+- 是否遵循项目 CLAUDE.md 中定义的规范
 
 ### Agent 5：代码质量与复用
 
@@ -2151,112 +1417,6 @@ git clone --depth 1 --branch {tag_or_branch} {repo_url} reference/{repo_name}
 ## 自我进化协议
 
 {按注入模板生成，侧重点：评估维度扩展、新的对比指标、源码分析模式优化}
-```
-
-### 模板：ref
-
-```markdown
----
-name: {prefix}-ref
-description: >
-  {项目名} 参考源码分析工作流。系统化阅读开源代码，提取可借鉴的模式、
-  架构设计、最佳实践，输出结构化分析报告。
-  触发词：参考代码、源码分析、开源项目、学习代码、ref、分析代码。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} 参考源码分析工作流
-
-## 分析流程
-
-```
-1. 获取源码（shallow clone / 在线浏览）
-2. 快速定位核心模块
-3. 按维度分析
-4. 输出结构化报告
-5. 提取可借鉴点
-```
-
-## Step 1: 获取源码
-
-```bash
-# shallow clone（节省空间和时间）
-git clone --depth 1 {repo_url} /tmp/{repo_name}
-```
-
-## Step 2: 快速定位
-
-优先查看：
-1. README.md — 项目定位和架构概述
-2. 入口文件 — main/index/app
-3. 目录结构 — 理解模块划分
-4. package.json / go.mod / Cargo.toml — 依赖关系
-
-## Step 3: 分析维度
-
-根据分析目的选择维度：
-
-| 维度 | 关注点 | 适用场景 |
-|------|--------|---------|
-| 架构设计 | 模块划分、依赖关系、设计模式 | 学习整体架构 |
-| 核心功能实现 | 关键算法、数据流、状态管理 | 理解特定功能 |
-| 工程实践 | 测试策略、CI/CD、错误处理、日志 | 学习工程规范 |
-| API 设计 | 接口风格、版本管理、文档 | 设计 API 参考 |
-| 性能优化 | 缓存策略、并发模型、数据结构 | 性能优化参考 |
-
-### 分析深度指引
-
-| 项目规模 | 建议深度 |
-|---------|---------|
-| < 1000 行 | 完整阅读 |
-| 1000-10000 行 | 核心模块深读 + 周边模块浏览 |
-| > 10000 行 | 目标模块精读 + 架构概览 |
-
-## Step 4: 分析报告模板
-
-```markdown
-# 参考分析报告：{项目名}
-
-## 项目定位
-
-- 仓库：{URL}
-- 定位：{一句话描述}
-- 技术栈：{语言/框架}
-- Stars：{数量}
-
-## 架构概述
-
-{目录结构 + 模块关系图}
-
-## 核心功能分析
-
-### {功能 1}
-
-- 实现方式：{描述}
-- 亮点：{值得学习的设计}
-- 局限：{不适合直接照搬的地方}
-
-## 与本项目的关联
-
-| 可借鉴点 | 适配难度 | 建议 |
-|---------|---------|------|
-| {模式/设计} | 低/中/高 | {具体建议} |
-
-## 集成可行性
-
-{如果是考虑集成的库，评估集成难度和风险}
-```
-
-## Step 5: 提取可借鉴点
-
-分析完成后，将可借鉴的模式整理为可操作的建议，必要时同步到相关 skill。
-
----
-
-## 自我进化协议
-
-{按注入模板生成，侧重点：新的分析维度、更好的报告结构}
 ```
 
 ### 模板：experiment
@@ -2857,6 +2017,177 @@ C. 两者都需调整 → 说明新的期望行为
 > 当主文件接近体积上限时，优先将内容拆分到子文件，而非删减。
 ```
 
+### 模板：promote
+
+```markdown
+---
+name: {prefix}-promote
+description: >
+  {项目名} 开源项目推广工作流。README 优化、渠道策略、内容营销、社区建设。
+  触发词：推广、promote、宣传、marketing、star、README 优化、写博文、发帖、开源推广。
+version: 1.0.0
+source: claude-skill-evo
+---
+
+# {项目名} 开源推广 Skill
+
+> 项目仓库：{git remote URL}
+> 当前阶段：{Phase 3 问答得到的推广阶段}
+
+---
+
+## 项目定位
+
+| 维度 | 内容 |
+|------|------|
+| 一句话价值主张 | {Phase 3 问答提炼} |
+| 目标受众 | {Phase 3 问答确认} |
+| 差异化卖点 | {从 README 和代码功能中提取} |
+| 所属生态 | {从技术栈推断，如 "Claude Code 生态"、"React 生态"} |
+
+---
+
+## README 优化清单
+
+> README 是最高 ROI 的推广手段。每一项都直接影响路人转化为 star。
+
+### 必备元素检查
+
+| 元素 | 状态 | 说明 |
+|------|------|------|
+| 首屏一句话价值主张 | {扫描 README 检查} | 打开 10 秒内必须知道解决什么问题 |
+| GIF / 截图演示 | {检查是否有图片引用} | 比文字有效 10 倍 |
+| Quick Start（30 秒跑通） | {检查是否有安装命令} | 降低试用门槛 |
+| Badges（CI / License / Stars） | {检查是否有 badge} | 建立可信度 |
+| "Who is this for" 段落 | {检查是否有目标用户描述} | 帮读者自我筛选 |
+| 对比表（With / Without） | {检查是否有对比} | 强化价值感知 |
+
+### 优化动作
+
+当用户触发 `/{prefix}-promote README` 时：
+1. 读取当前 README.md
+2. 逐项检查上表，标注 ✅ 已有 / ❌ 缺失
+3. 对缺失项提供具体的补充建议（含示例文本）
+4. 用户确认后直接编辑 README
+
+---
+
+## 推广渠道矩阵
+
+### 第一梯队：精准社区（项目创建后 1 周内）
+
+| 渠道 | 行动 | 注意事项 |
+|------|------|---------|
+| {生态相关的核心社区} | {根据技术栈定制，如 "Anthropic Discord #claude-code 频道"} | 用价值描述而非广告语气 |
+| GitHub Discussions | 在 {相关项目} 的 Discussions 分享 | 先贡献再推广，不要冷启动硬推 |
+| Awesome Lists | 提 PR 到 {相关的 awesome-xxx 仓库} | 确保项目质量配得上 awesome 标准 |
+
+### 第二梯队：内容平台（1-2 周内）
+
+| 渠道 | 内容类型 | 模板 |
+|------|---------|------|
+| Hacker News | Show HN 帖 | "Show HN: {项目名} – {一句话描述}" |
+| Reddit | 技术分享帖 | 发到 {相关 subreddit} |
+| dev.to / Medium | 技术博文 | "Why I Built {项目名}" 或 "{痛点} — Here's How to Fix It" |
+| Twitter/X | 技术 Thread | 问题→方案→效果 三段式 |
+
+### 第三梯队：中文社区（同步进行）
+
+| 渠道 | 内容类型 |
+|------|---------|
+| V2EX（创意工坊/程序员节点） | 项目介绍 + 故事 |
+| 掘金 | 技术博文 |
+| 知乎 | 回答相关问题时自然引流 |
+
+---
+
+## 内容营销模板
+
+### 博文大纲生成
+
+当用户触发 `/{prefix}-promote 写博文` 时：
+
+1. 确认目标渠道（英文 dev.to / 中文掘金 / 通用）
+2. 生成大纲：
+   - **标题**：痛点导向，不要产品名导向
+   - **开头**：用真实场景描述问题（读者共鸣）
+   - **中段**：展示方案（架构图 + 代码示例）
+   - **结尾**：CTA（GitHub 链接 + 安装命令）
+3. 用户确认大纲后，生成完整草稿
+
+### Social Media 帖文生成
+
+当用户触发 `/{prefix}-promote 发帖` 时：
+
+1. 确认目标平台（Twitter/HN/V2EX/Reddit）
+2. 按平台风格生成帖文：
+   - **Twitter**：≤280 字，问题→方案→链接
+   - **HN**：Show HN 格式，简洁直接
+   - **V2EX**：口语化，带故事
+   - **Reddit**：社区 tone，先给价值再 mention 项目
+
+---
+
+## 社区建设清单
+
+### 降低贡献门槛
+
+- [ ] 有 CONTRIBUTING.md
+- [ ] 有 `good first issue` 标签的 issue
+- [ ] Issue 和 PR 模板已配置
+- [ ] 回复 issue/PR 的平均时间 < 24h
+
+### 生态集成
+
+- [ ] 在相关工具/框架中提供集成示例
+- [ ] 在 README 中展示"谁在用"
+- [ ] 被上游项目或 awesome list 收录
+
+---
+
+## 推广节奏（执行计划）
+
+| 时间 | 动作 | 优先级 |
+|------|------|--------|
+| 本周 | README 优化（GIF + badges + Quick Start） | 🔴 高 |
+| 本周 | 核心社区首发（{生态社区}） | 🔴 高 |
+| 下周 | 技术博文（英文 + 中文各一篇） | 🟡 中 |
+| 下周 | Awesome Lists PR | 🟡 中 |
+| 持续 | 每周 1 条 Twitter 展示进展 | 🟢 常规 |
+| 月度 | 深度技术博文引流 | 🟢 常规 |
+
+---
+
+## 推广效果追踪
+
+| 指标 | 记录方式 |
+|------|---------|
+| GitHub Stars | 每次 promote 时自动读取 `gh repo view --json stargazerCount` |
+| Forks | 同上 |
+| 流量来源 | GitHub Insights（手动记录到此处） |
+| 博文/帖子反馈 | 记录各渠道的浏览量和互动 |
+
+---
+
+## 避坑指南
+
+| 陷阱 | 为什么 | 替代方案 |
+|------|--------|---------|
+| 刷 star（互 star 群） | GitHub 检测 + 虚假 star 不带来真实用户 | 靠内容和社区自然增长 |
+| 只发一次就等着 | 推广是持续行为 | 按推广节奏持续执行 |
+| 过早追求完美文档 | 先有用户反馈再完善 | README 够用即可，快速上线 |
+| 广告语气发帖 | 社区反感 | 分享价值和经验，自然提及项目 |
+| 忽略项目名和 description | 搜索引擎依赖元数据 | 确保 GitHub description 精准 |
+
+---
+
+## 自我进化协议
+
+{按注入模板生成，侧重点：新渠道发现、推广效果反馈、README 优化点}
+
+**Promote 专属进化**：每次执行推广动作后，记录渠道、内容类型和效果反馈。有效渠道提升优先级，无效渠道降级或移除。用户发现新的推广机会时，提议写入渠道矩阵。
+```
+
 ---
 
 ## Phase 5: 验证 & 完成
@@ -2865,16 +2196,16 @@ C. 两者都需调整 → 说明新的期望行为
 
 ```bash
 # 验证所有 skill 文件存在
-ls .claude/skills/{prefix}-*/SKILL.md
+ls .claude/skills/*/SKILL.md
 
 # 验证 CLAUDE.md 存在
 ls .claude/CLAUDE.md
 
 # 验证 frontmatter 格式
-grep -h "^name:\|^version:" .claude/skills/{prefix}-*/SKILL.md
+grep -h "^name:\|^version:" .claude/skills/*/SKILL.md
 
 # 验证进化协议注入
-grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
+grep -l "自我进化协议" .claude/skills/*/SKILL.md
 ```
 
 ### 5.2 完成报告
@@ -2889,8 +2220,7 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 📂 .claude/skills/{prefix}-skill/SKILL.md    — 元技能（含进化引擎）
 📂 .claude/skills/{prefix}-dev/SKILL.md      — 本地开发
 📂 .claude/skills/{prefix}-commit/SKILL.md   — Git 提交
-📂 .claude/skills/{prefix}-bugfix/SKILL.md   — Bug 修复（含记录库）
-📂 .claude/skills/{prefix}-api/SKILL.md      — API 规范
+📂 .claude/skills/{prefix}-debug/SKILL.md   — Bug 修复（含记录库）
 ...
 
 🧬 所有 skill 已注入「自我进化协议」（被动进化 + 体积守护）
@@ -2898,8 +2228,8 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 使用方式：
   /{prefix}-dev         查看本地开发命令
   /{prefix}-commit      提交代码
-  /{prefix}-bugfix      修复 bug
-  /{prefix}-skill       管理/进化所有 skills
+  /{prefix}-debug      修复 bug
+  /{prefix}-skill       管理/进化所有 skills（含进化分析）
 
 💡 随时可以再次执行 /skill-evo 来优化和完善 skills。
 ```
@@ -2910,8 +2240,7 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 ✅ Skills 优化完成！
 
 本次变更：
-🆕 新建 1 个 skill：{prefix}-test
-🔄 更新 2 个 skill：{prefix}-dev、{prefix}-bugfix
+🔄 更新 2 个 skill：{prefix}-dev、{prefix}-debug
 📝 version 变更：{prefix}-dev v1.0.0 → v1.0.1
 
 💡 随时可以再次执行 /skill-evo 继续优化。
@@ -2952,210 +2281,3 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 - 侧重点根据 skill 类型调整（参考进化侧重表）
 - CLAUDE.md 中必须包含进化提示章节（让所有对话都能触发进化）
 
----
-
-## Design Skill 生成指南
-
-> 仅当 Phase 1 嗅探到设计系统（`DESIGN_PLATFORM ≠ none`）时执行本章节。
-> 生成文件：`.claude/skills/{prefix}-design/SKILL.md`
-
-### 通用生成规则
-
-1. 读取 `DESIGN_TOKEN_FILES` 中的文件，提取颜色、间距、字号、圆角 token
-2. 扫描到的值直接写入 skill；扫描不到的字段用占位符 `{{KEY: 说明}}`
-   - 占位符格式锁定为 `{{KEY: 说明}}`，仅供用户手动替换，不作结构化标记
-   - `DESIGN_TOKEN_FILES` 为空时，所有 token 字段均使用占位符
-3. `## 实现顺序规范` 章节内容由生成时的已有 skill 列表自动填入；
-   若尚无其他 skill，写"暂无依赖，直接参考 design skill"
-4. 所有平台均包含 `## 自我进化协议` 章节（简洁版，≤15 行），侧重：token 文件变更时触发 STALE 检测
-
----
-
-### 平台 A：React Native / Expo
-
-> 当 `DESIGN_PLATFORM = rn` 时，按以下结构生成 design skill。
-
-```markdown
----
-name: {prefix}-design
-description: >
-  {项目名} 设计系统完整指南。实现 UI 组件、还原设计稿、查询 Design Token 时调用此 skill。
-  触发词：实现UI、实现组件、设计还原、Figma、截图实现、token查询、颜色token、设计系统、Dark Mode。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} Design System Skill
-
-> Token 文件：{DESIGN_TOKEN_FILES[0] 或 "未检测到，请手动填入"}
-
-## 实现顺序规范
-
-{Phase 2 已有 skill 列表自动填入；若尚无其他 skill，写"暂无依赖，直接参考 design skill"}
-
-## 调用方式
-
-**Figma URL** — 调用 Figma MCP 获取设计上下文，映射 token 后实现。
-**截图/图片** — 图片颜色必须映射到语义 token，不得硬编码 hex。图片默认为 Light 模式。
-**文字描述** — 找到代码位置，将描述转为 token 后修改。
-
-**共同规则：实现前必须先搜索现有组件**，确认无相同/相似组件后再新建。
-
-## Light / Dark 模式规范
-
-- 颜色必须用语义 token，通过主题 hook 获取，不得放 `StyleSheet.create`
-- `StyleSheet.create` 只放静态 token（间距、字号、圆角），颜色必须内联
-- 禁止：`"#FFFFFF"`、`"rgba(0,0,0,0.1)"` 等，一律替换为对应 token
-
-## 颜色 Token 速查
-
-| Token | Light | Dark | 用途 |
-|-------|-------|------|------|
-{{COLOR_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入；格式：token名 | light值 | dark值 | 用途}}
-
-## 间距 / 字号 / 圆角 Token
-
-| 类型 | Token | 值 |
-|------|-------|-----|
-{{SPACING_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入}}
-{{TYPOGRAPHY_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入}}
-{{RADIUS_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入}}
-
-## 禁止事项
-
-| 禁止 | 原因 |
-|------|------|
-| `backgroundColor: "#FFFFFF"` 等硬编码颜色 | 不跟随主题 |
-| 颜色放在 `StyleSheet.create` | Light/Dark 无法切换 |
-| 遇到不确定的设计自行猜测 | 必须向用户提问 |
-| 未搜索直接新建组件 | 优先复用现有实现 |
-
-## 自我进化协议
-
-| 信号 | 行动 |
-|------|------|
-| skill 描述的 token 与 token 文件实际不符 | 立即说明「⚠️ skill 内容可能过时」|
-| 遇到 skill 未覆盖但需要规范的设计场景 | 记录为待补充 |
-| 用户纠正了 skill 描述的做法 | 标记，任务后提议更新 |
-
-高风险过时信号：token 文件新增/删除/改名 → 颜色速查表可能过时。
-```
-
----
-
-### 平台 B：Web（React/Vue/Next.js）
-
-> 当 `DESIGN_PLATFORM = web` 时，按以下结构生成 design skill。
-
-```markdown
----
-name: {prefix}-design
-description: >
-  {项目名} 设计系统完整指南。实现 UI 组件、查询 Design Token 时调用此 skill。
-  触发词：实现UI、实现组件、token查询、颜色token、设计系统、Dark Mode、Tailwind。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} Design System Skill
-
-> Token 文件：{DESIGN_TOKEN_FILES[0] 或 "未检测到，请手动填入"}
-
-## 实现顺序规范
-
-{Phase 2 已有 skill 列表自动填入；若尚无其他 skill，写"暂无依赖，直接参考 design skill"}
-
-## 调用方式
-
-同通用版（Figma URL / 截图 / 文字描述），图片颜色映射到 CSS variables / Tailwind class。
-实现前必须先搜索现有组件目录，确认无重复后再新建。
-
-## 颜色使用规范
-
-- Tailwind 项目：使用 `className="text-{token}"` / `bg-{token}` 等 class
-- CSS Variables 项目：使用 `var(--color-{token})`
-- 禁止：`color: "#333"` / `background-color: rgba(0,0,0,0.5)` 等裸 hex/rgba
-
-## Token 速查
-
-{{TAILWIND_CONFIG: 从 tailwind.config 扫描填入自定义颜色/间距 token；扫不到则为占位符}}
-
-## 禁止事项
-
-| 禁止 | 原因 |
-|------|------|
-| 裸写 hex 颜色 / rgba 值 | 不使用 token，无法统一主题 |
-| 裸写 px 间距值 | 不使用 spacing scale |
-| 遇到不确定的设计自行猜测 | 必须向用户提问 |
-| 未搜索直接新建组件 | 优先复用现有实现 |
-
-## 自我进化协议
-
-| 信号 | 行动 |
-|------|------|
-| skill 描述的 token 与 token 文件实际不符 | 立即说明「⚠️ skill 内容可能过时」|
-| 遇到 skill 未覆盖但需要规范的设计场景 | 记录为待补充 |
-| 用户纠正了 skill 描述的做法 | 标记，任务后提议更新 |
-
-高风险过时信号：tailwind.config 变更 → Token 速查可能过时。
-```
-
----
-
-### 平台 C：SwiftUI
-
-> 当 `DESIGN_PLATFORM = swiftui` 时，按以下结构生成 design skill。
-
-```markdown
----
-name: {prefix}-design
-description: >
-  {项目名} 设计系统完整指南。实现 SwiftUI 组件、查询 Design Token 时调用此 skill。
-  触发词：实现UI、实现组件、token查询、颜色token、设计系统、Dark Mode、Color asset。
-version: 1.0.0
-source: claude-skill-evo
----
-
-# {项目名} Design System Skill
-
-> Token 文件：{DESIGN_TOKEN_FILES[0] 或 "未检测到，请手动填入"}
-
-## 实现顺序规范
-
-{Phase 2 已有 skill 列表自动填入；若尚无其他 skill，写"暂无依赖，直接参考 design skill"}
-
-## 调用方式
-
-同通用版，图片颜色映射到 Color asset 或 SwiftUI Color extension。
-实现前必须先搜索现有组件，确认无重复后再新建。
-
-## 颜色适配规范
-
-- 使用 Color assets（Assets.xcassets）：`Color("tokenName")`
-- 使用自定义 Color extension：`Color.{tokenName}`（若项目有）
-- 禁止：`.foregroundColor(.white)` / `Color(red:green:blue:)` 等硬编码
-
-## Token 速查
-
-{{COLOR_TOKENS: 从 Token 文件扫描填入；格式：asset名称 | 用途}}
-{{SPACING_TOKENS: 从 Token 文件扫描填入}}
-
-## 禁止事项
-
-| 禁止 | 原因 |
-|------|------|
-| `.foregroundColor(.white)` 等硬编码颜色 | 不支持 Dark Mode 自适应 |
-| `.padding(16)` 等硬编码间距 | 不使用 spacing token |
-| 遇到不确定的设计自行猜测 | 必须向用户提问 |
-| 未搜索直接新建组件 | 优先复用现有实现 |
-
-## 自我进化协议
-
-| 信号 | 行动 |
-|------|------|
-| skill 描述的 token 与 token 文件实际不符 | 立即说明「⚠️ skill 内容可能过时」|
-| 遇到 skill 未覆盖但需要规范的设计场景 | 记录为待补充 |
-| 用户纠正了 skill 描述的做法 | 标记，任务后提议更新 |
-
-高风险过时信号：Token 文件变更 → Token 速查可能过时。
-```

@@ -98,13 +98,12 @@ Compares your project's current state against existing skills:
 
 Existing skills:
   ✅ myapp-dev      v1.0.2  — healthy
-  ⚠️ myapp-bugfix   v1.0.1  — 1 stale reference found
-  ✅ myapp-api      v1.0.0  — healthy
+  ⚠️ myapp-debug    v1.0.1  — 1 stale reference found
+  ✅ myapp-review   v1.0.0  — healthy
 
 Improvement opportunities:
   1. 🆕 Detected Vitest but no test skill → create one?
   2. 🔄 README has new commands not in dev skill → update?
-  3. 📝 docker-compose.yml found but no cloud skill → create one?
 
 Which ones? (1,2 / all / skip)
 ```
@@ -118,25 +117,15 @@ Which ones? (1,2 / all / skip)
     ├── {prefix}-skill/SKILL.md        # Meta-skill + evolution engine
     ├── {prefix}-dev/SKILL.md          # Local dev commands & environment
     ├── {prefix}-commit/SKILL.md       # Git commit conventions
-    ├── {prefix}-bugfix/SKILL.md       # Bug fix workflow + experience DB
-    │   └── records/                   # Bug fix records (grows over time)
-    ├── {prefix}-api/SKILL.md          # API conventions
-    ├── {prefix}-frontend/SKILL.md     # Frontend component standards
-    ├── {prefix}-mobile/SKILL.md       # Mobile app patterns
-    ├── {prefix}-db/SKILL.md           # Database schema & migration
-    ├── {prefix}-cloud/SKILL.md        # Deployment & infrastructure
-    ├── {prefix}-test/SKILL.md         # Testing strategy & commands
-    ├── {prefix}-review/SKILL.md       # Multi-agent code review
-    ├── {prefix}-research/SKILL.md     # Tech evaluation workflow
-    ├── {prefix}-ref/SKILL.md          # Reference code analysis
-    ├── {prefix}-experiment/SKILL.md   # Experiment tracking (AI/ML)
-    ├── {prefix}-admin/SKILL.md        # Admin panel conventions
-    └── {prefix}-migration/SKILL.md    # Migration workflow
+    ├── {prefix}-debug/SKILL.md        # Bug fix workflow + experience DB
+    ├── {prefix}-digest/SKILL.md       # Knowledge capture
+    ├── {prefix}-review/SKILL.md       # Multi-agent code review  (optional)
+    └── {prefix}-research/SKILL.md     # Tech evaluation + source analysis (optional)
 ```
 
 `{prefix}` is auto-detected from your project (package.json, go.mod, Cargo.toml, etc.) — you just confirm.
 
-Only applicable skills are created. A Python CLI tool won't get a `frontend` skill. A static site won't get a `db` skill.
+Optional skills are created based on your answers during setup. The meta-skill (`{prefix}-skill`) includes a built-in evolution engine — run `/{prefix}-skill evolve` to trigger a full skill health scan.
 
 ## Self-Evolution Protocol
 
@@ -173,8 +162,8 @@ At the end of long sessions, skills proactively ask:
 ```
 📝 Session Review — I noticed things worth capturing:
 
-1. [New pattern] API errors now use AppError class → write to myapp-api?
-2. [Bug fix] OAuth token refresh race condition → write to myapp-bugfix/records/?
+1. [New pattern] AppError class adopted across all handlers → write to myapp-skill?
+2. [Bug fix] OAuth token refresh race condition → write to myapp-debug/records/?
 
 Write all? Or confirm one by one?
 ```
@@ -279,8 +268,8 @@ All data stays **local** (never uploaded). Add `raw/` and `pending-signals.jsonl
 
 ```bash
 # Manual triggers
-/{prefix}-evolve    # Run evolution analysis now
-/{prefix}-digest    # View evolution status
+/{prefix}-skill 进化    # Run evolution analysis now
+/{prefix}-digest        # Capture knowledge
 ```
 
 **Standalone installation** (for projects with existing skills):
@@ -463,8 +452,8 @@ Glob、Grep、Agent 调用**故意跳过**——它们是探索性噪音，选�
 所有数据**仅存储在本地**（永不上传）。`raw/` 和 `pending-signals.jsonl` 加入 `.gitignore`——只有 `evolution-digest.md` 值得提交，作为团队知识沉淀。
 
 ```bash
-/{prefix}-evolve    # 手动触发进化分析
-/{prefix}-digest    # 查看进化状态
+/{prefix}-skill 进化    # 手动触发进化分析
+/{prefix}-digest        # 沉淀知识
 ```
 
 **独立安装**（适用于已有 skills 的项目）：
