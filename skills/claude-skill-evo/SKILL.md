@@ -475,7 +475,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 ### 4.1.1 知识库初始化（首次初始化时自动执行）
 
 ```bash
-mkdir -p .claude/knowledge/{decisions,research,pitfalls,conventions,references}
+mkdir -p .claude/knowledge/{decisions,research,pitfalls,conventions,references,ideas}
 ```
 
 创建 `.claude/knowledge/index.md`：
@@ -492,7 +492,28 @@ mkdir -p .claude/knowledge/{decisions,research,pitfalls,conventions,references}
 ## 隐式规范
 
 ## 外部参考
+
+## 待评估想法
+<!-- 列出 ideas/ 下 status: pending 的想法链接 -->
 ```
+
+**`ideas/` 文件格式**（命名：`YYYY-MM-DD-<slug>.md`）：
+
+    ---
+    status: pending
+    date: YYYY-MM-DD
+    source: <对话中发现 / 用户主动提出 / 调研中产生>
+    ---
+
+    # <想法标题>
+
+    **背景**：一句话描述为什么有这个想法
+
+    ## 想法内容
+
+    ...
+
+状态值：`pending`（待评估）/ `to-research` / `to-decision` / `dropped`
 
 ### 4.1.2 进化系统配置（首次初始化时自动执行）
 
