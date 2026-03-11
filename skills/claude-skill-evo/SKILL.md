@@ -6,7 +6,7 @@ description: >
   所有生成的 skill 内置自我感知与进化协议。
   触发词：初始化 skills、init skills、创建 skills、项目初始化、setup skills、
   生成 CLAUDE.md、skill-evo、锻造 skill、优化 skill、完善 skill、进化 skill。
-version: 3.0.0
+version: 3.1.0
 source: claude-skill-evo
 license: MIT
 author: Atompilot
@@ -291,6 +291,44 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | **用具体例子引导** | 比起抽象描述，例子更能帮用户对号入座 |
 | **不追问** | 用户回答"不确定"或跳过时，用合理默认值，不要反复追问 |
 
+### 1.4 设计系统嗅探（自动，每次都做）
+
+在 Phase 1 扫描完成后，额外检测是否存在设计系统，以决定是否生成 design skill。
+
+**平台检测规则：**
+
+注 1：检查 package.json 时，范围为 dependencies + devDependencies + peerDependencies 合集。
+注 2：以下检测互斥，首个命中即停止，不继续检测后续平台。
+
+```bash
+# 1. React Native / Expo（主信号：expo 包；备用：react-native 包）
+grep -E '"expo"|"react-native"' package.json 2>/dev/null
+
+# 2. Web（react/vue/next 存在，且 expo 和 react-native 均不存在）
+grep -E '"react"|"vue"|"next"' package.json 2>/dev/null
+# 仅在步骤 1 完全未命中时才检查此项
+
+# 3. SwiftUI（.xcodeproj 存在，或 *.swift 文件中有 import SwiftUI）
+ls *.xcodeproj 2>/dev/null
+grep -rl "import SwiftUI" --include="*.swift" --max-depth=3 . 2>/dev/null | head -1
+
+# 4. 未命中任何平台 → DESIGN_PLATFORM=none，跳过，不生成 design skill
+```
+
+**Token 文件候选（命中平台后按序尝试，取首个存在的文件）：**
+
+| 平台 | 候选路径（优先级从高到低） | Fallback glob（深度 ≤ 3 层，取前 2 个） |
+|------|--------------------------|----------------------------------------|
+| RN/Expo | `src/lib/design.ts` → `src/theme.ts` → `src/styles/tokens.ts` → `src/theme/colors.ts` → `constants/Colors.ts` | `**/theme*.ts`, `**/color*.ts`, `**/token*.ts` |
+| Web | `tailwind.config.ts` → `tailwind.config.js` → `src/tokens.json` → `src/styles/tokens.css` → `src/theme/index.ts` | `**/token*.{ts,js,json,css}`, `**/theme*.{ts,js}` |
+| SwiftUI | `*/DesignSystem/*.swift` → `*/Theme/*.swift` → `*/Tokens/*.swift` | `**/*Color*.swift`, `**/*Token*.swift` |
+
+**传递给 Phase 2：**
+- `DESIGN_PLATFORM`：`rn` / `web` / `swiftui` / `none`
+- `DESIGN_TOKEN_FILES`：扫描到的 token 文件路径列表（可为空列表）
+
+> 重要：`DESIGN_PLATFORM ≠ none` 即进入 design skill 生成流程，即使 `DESIGN_TOKEN_FILES` 为空（此时所有 token 字段使用占位符 `{{KEY: 说明}}`）。
+
 ---
 
 ## Phase 2: Skill 规划
@@ -326,6 +364,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | 有 AI/ML 相关 | `experiment` | 实验设计与执行 |
 | 有 Admin 后台 | `admin` | 后台管理开发规范 |
 | 有产品设计需求 | `product` | 产品设计文档索引、功能模块管理、设计规范 |
+| 有设计系统（Phase 1 嗅探命中，`DESIGN_PLATFORM ≠ none`，即使 `DESIGN_TOKEN_FILES` 为空也生成） | `design` | Design Token 速查、Light/Dark 规范、禁止事项（空 token list 时全部使用占位符） |
 | Monorepo | `migration` | 跨包迁移规范 |
 
 ### 2.2 向用户展示规划
@@ -351,6 +390,8 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 
 ✅ = 推荐  ⚡ = 可选
 🧬 所有 skill 将内置「自我进化协议」
+# 若 Phase 1 嗅探命中设计系统，自动追加：
+# └── {prefix}-design/SKILL.md   🎨 Design Token 规范（平台：{DESIGN_PLATFORM}）
 
 要增加或去掉哪些？确认后开始锻造。
 ```
@@ -667,6 +708,16 @@ reference/
 ## Git 提交规范
 
 {如果选了 commit skill，在此放简版引用}
+
+## Skill 自我进化
+
+本项目的 skill 体系具备被动进化能力。在日常工作中，如果你发现：
+- **skill 内容与项目现状不符**（路径、命令、API 已变）→ 提议更新 skill
+- **用户纠正了 skill 中的规范** → 提议将正确做法写入 skill
+- **反复出现的操作模式未被 skill 记录** → 提议补充
+- **用户明确说"记住"、"以后都这样"** → 提议写入 skill
+
+修改 skill 前必须向用户确认，绝不擅自修改。
 ```
 
 ### 4.4 Skill 生成规则
@@ -692,7 +743,7 @@ source: claude-skill-evo
 | **精简 > 冗长** | 每个 skill 控制在 60-180 行，核心指令优先 |
 | **可操作 > 概念性** | 读完就知道怎么做，避免模糊描述 |
 | **有触发词** | description 必须包含多个触发关键词 |
-| **有进化协议** | 每个 skill 末尾注入自我进化协议 |
+| **有进化协议** | 每个 skill 末尾注入自我进化协议；CLAUDE.md 包含进化提示 |
 
 ### 4.5 Bugfix Skill 特殊处理
 
@@ -742,11 +793,12 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 
 ## ★ 自我进化协议（注入到每个生成的 skill 中）
 
-### 核心理念
+### 设计原则
 
-> 锻造出的 skill 不是静态文档，而是活的知识体——能感知自身状态，能从经验中学习，能主动提议更新。进化有信心梯度、有体积边界、有安全门控。
+> 进化通过日常工作被动触发，不依赖显式命令。用户与 Claude 的每次对话都是进化的机会。
+> 协议追求最小认知负担：Claude 靠自然语言理解判断"是否值得沉淀"，不依赖无法跨 session 持久化的数值评分。
 
-每个生成的 skill 末尾必须包含以下「自我进化协议」章节。根据 skill 类型适当调整措辞，但协议结构保持一致。
+每个生成的 skill 末尾必须包含以下「自我进化协议」章节。根据 skill 类型调整侧重点描述即可。
 
 ### 注入模板
 
@@ -757,42 +809,28 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。以下规则在每次使用时自动生效。
+> 本 skill 在日常使用中自动进化。无需显式触发，每次对话都可能驱动改进。
 
-### Auto-Learn（主动学习）
+### 何时提议进化
 
-**触发信号**：
+在**任何对话**中，发现以下信号时提议更新本 skill：
 
-| 信号 | 触发条件 | 信心 | 行为 |
-|------|---------|------|------|
-| 用户纠正 | 用户说"不对"、"应该是..." | 🟠 0.5 | 提议将正确做法写入本 skill |
-| 失败-纠正链 | 命令失败后用户纠正 | 🔴 0.8 | 提议写入失败根因 + 正确做法 |
-| 重复模式 | 同一操作方式出现 ≥2 次 | 🟡~🔴 0.3~0.8 | 提议写入本 skill 作为规范 |
-| 显式指令 | 用户说"记住这个"、"以后都这样做" | ⚫ 0.9 | 直接提议写入本 skill |
-| 新发现 | 发现项目中存在但 skill 未记录的规范 | 🟡 0.3 | 标记为试探性，待确认后提升 |
-| 命令失败 | 命令执行失败（exit code ≠ 0） | 🟡 0.4 | 检查是否需要更新 dev skill |
-| 工具变更 | 检测到项目依赖/工具链发生变化 | 🟠 0.5 | 提议更新相关 skill 内容 |
+| 信号 | 示例 | 行为 |
+|------|------|------|
+| 用户纠正 | "不对，应该用 pnpm 不是 npm" | 提议将正确做法写入 |
+| 失败→修复 | 命令失败，排查后找到根因 | 提议写入根因 + 正确做法 |
+| 显式指令 | "记住这个"、"以后都这样" | 提议立即写入 |
+| 内容过期 | skill 中的路径/命令/API 已失效 | 提议更新过期内容 |
+| 规范冲突 | skill 规范与代码实际做法不一致 | 询问以哪个为准，然后提议更新 |
 
-**信心等级**（决定提议的优先级和措辞强度）：
+**不需要提议的情况**：一次性的、临时的操作，不代表项目规范的内容。
 
-| 标记 | 范围 | 含义 | 行为 |
-|------|------|------|------|
-| 🟡 | 0.3-0.4 | 试探性 | 仅记录，不主动提议；积累到 ≥2 次后升级 |
-| 🟠 | 0.5-0.6 | 中等信心 | 提议但语气温和："我注意到可能需要..." |
-| 🔴 | 0.7-0.8 | 强信心 | 明确提议："建议写入以下规范..." |
-| ⚫ | 0.9 | 确定性 | 强烈提议："这是一条确定的规范，建议立即写入" |
-
-**信心变化规则**：
-- **升高**：相同模式再次出现 (+0.1)、用户未纠正建议的行为 (+0.05)、跨 session 重复 (+0.15)
-- **降低**：用户明确否定 (-0.2)、长期未再观察到 (-0.1/月)、出现矛盾证据 (-0.15)
-
-**确认流程**（不擅自修改）：
+### 确认流程（绝不擅自修改 skill 文件）
 
 ```
-🔔 [信心: {等级}] 我注意到一个可以写入 skill 的规范：
+🔔 我注意到一个可以写入 skill 的规范：
 
-{描述发现的规范}
-{如果是失败-纠正链：附上根因分析}
+{描述发现的内容}
 
 建议写入：{prefix}-{skill}/SKILL.md 的「{章节名}」
 内容预览：
@@ -803,170 +841,35 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 是否写入？(Y/N)
 ```
 
-**写入质量标准**：
-- 新规则必须具体、可操作（有 Before/After 示例）
-- 新规则不得与现有规则矛盾（如矛盾，需同时处理）
-- 写入后 version 的 patch 号 +1（如 1.0.0 → 1.0.1）
-- 每条写入的规则标注信心等级标记
-
-### Stale Detection（过期检测）
-
-**触发信号**：
-
-| 信号 | 判断方式 | 行为 |
-|------|---------|------|
-| 路径失效 | skill 引用的文件/目录不存在 | 标记并提议更新 |
-| 命令失败 | skill 中的命令执行报错 | 标记并提议更新 |
-| API 变更 | 框架/库 API 已改名或废弃 | 标记并提议更新 |
-| 版本过时 | skill 引用的版本号与实际不符 | 标记并提议更新 |
-| 规范冲突 | skill 规范与代码实际做法不一致 | 标记并询问以哪个为准 |
-
-**处理原则**：
-- **不要沉默**：发现过期内容必须告知用户，不得默默忽略
-- **不要擅改**：提出更新建议，等用户确认后再修改
-- **及时标记**：在 skill 文件中用 `<!-- STALE: {原因} -->` 标记过期内容
-
-**过期处理流程**：
-
-```
-⚠️ 检测到 skill 内容可能过期：
-
-文件：{prefix}-{skill}/SKILL.md
-位置：{章节名}
-问题：{具体问题描述}
-
-建议更新为：
----
-{新内容}
----
-
-是否更新？(Y/N)
-```
+写入后 version patch +1（如 1.0.0 → 1.0.1）。
 
 ### Size Guard（体积守护）
 
-> 防止 skill 文件无限膨胀，保持上下文窗口高效利用。
-
 **守护线**：每个 SKILL.md ≤ 15KB（约 400 行）
 
-**触发压缩的条件**：
-- 文件体积 > 12KB → 提前警告
-- 文件体积 > 15KB → 写入前必须先压缩
+- > 12KB → 写入前警告，建议先压缩（合并相似规则、归档长期未引用的内容）
+- > 15KB → 必须先压缩再写入
 
-**压缩策略**：
-1. 合并相似规则（Before/After 示例保留最典型的 1 个）
-2. 低信心 (🟡) 且超过 30 天未被引用的规则 → 移入归档注释 `<!-- ARCHIVED: ... -->`
-3. 经验条目超过 20 条时 → 保留 Top 10 高信心 + 将其余压缩为 1 行摘要
-4. 移除已被更高信心规则覆盖的旧规则
+### 侧重点
 
-**压缩流程**：
-```
-📏 体积守护：{prefix}-{skill}/SKILL.md 当前 {size}KB，超过 12KB 警戒线。
-建议压缩以下内容：
-1. [🟡 0.3] {规则A} — 30天未引用，建议归档
-2. [🟠 0.5] {规则B} 和 {规则C} — 内容相似，建议合并
-
-是否执行压缩？(Y/N)
-```
-
-### Session Review（会话回顾）
-
-每次长会话结束前（用户说"好了"、"结束"、"就这样"），主动检查：
-
-1. **本次会话中是否发现了新的项目规范？** → 提议写入相关 skill
-2. **本次会话中是否有失败-纠正链值得沉淀？** → 提议写入根因 + 修复方案
-3. **本次会话中是否修正了 skill 中的错误？** → 提议更新
-4. **本次会话中是否有值得记录的经验？** → 提议写入 bugfix records 或对应 skill
-
-```
-📝 会话回顾——我在本次会话中发现了以下可以沉淀的内容：
-
-1. [🔴 新规范] {描述} → 建议写入 {prefix}-{skill}
-2. [🔴 失败链] {失败→纠正} → 建议写入根因分析
-3. [🟠 经验] {描述} → 建议写入 {prefix}-bugfix/records/
-
-是否写入？逐条确认还是全部写入？
-```
+> {根据 skill 类型填写，如："新命令发现、环境变量变更、依赖服务变化"}
 ```
 
 ### 各 Skill 的进化侧重
 
 不同 skill 的进化协议侧重点不同：
 
-| Skill 类型 | Auto-Learn 侧重 | 失败链侧重 | 体积警戒 |
-|-----------|----------------|-----------|---------|
-| `dev` | 新命令发现、环境变量变更、依赖服务变化 | 构建/启动失败 → 环境修复 | 15KB |
-| `commit` | 新的 commit type 涌现、message 风格演变 | hook 失败 → 规范调整 | 10KB |
-| `bugfix` | 每次修复自动沉淀记录、更新速查索引 | 修复回退 → 根因分析 | 20KB（含 records） |
-| `skill`（元技能） | 新 skill 创建时自动更新目录表、跨 skill 一致性检查 | 进化冲突 → 规则仲裁 | 15KB |
-| `api` | 新端点模式、错误码扩展、认证方案变更 | 请求失败 → 接口变更 | 15KB |
-| `db` | Schema 变更记录、新的查询模式、迁移经验 | 迁移失败 → 回滚方案 | 15KB |
-| `review` | 新的审查规则发现、误报规则剔除 | 审查遗漏 → 规则补充 | 15KB |
-| `test` | 新的测试模式、覆盖率变化、断言风格演变 | 测试误报 → 断言修正 | 15KB |
-| `research` | 评估维度扩展、新的对比指标 | — | 15KB |
-
-### Evolution System Integration（进化系统集成）
-
-如果项目配置了进化系统（`.claude/evolution/` 目录存在），每个生成的 skill 的进化协议中额外注入以下内容：
-
-```markdown
-### Evolution System Integration
-
-本项目已配置跨会话进化系统（v3.1），与 Auto-Learn 协作方式如下：
-
-**分工**：
-- **Auto-Learn**：实时的、会话内的即时提议（用户纠正 → 立刻提议写入）
-- **进化系统**：跨会话的、积累分析（多次会话的数据 → 批量提议 + 信心评分）
-
-**当收到 `<evolution-trigger>` 注入时**：
-1. 不打断用户当前任务
-2. 在任务完成后或合适时机读取进化数据
-3. 读取 `.claude/evolution/evolution-digest.md`（上次总结 + 元进化记录）
-4. 读取 `.claude/evolution/pending-signals.jsonl`（带信心评分的信号）
-5. **信心优先**：先处理 ⚫/🔴 高信心信号，🟡 低信心信号标记为 deferred
-6. **聚类处理**：相同 cluster_id 的信号一起分析，避免重复提议
-7. **体积检查**：写入前检查目标 skill 文件体积，超过 12KB 先触发压缩
-8. 对比本 skill 内容，生成进化提议
-9. 等待用户确认后写入
-10. **元进化**：分析完成后，评估进化过程本身是否有改进空间
-
-**进化分析完成后必须更新**：
-- `evolution-digest.md`：写入本次确认的 Patterns / Corrections / Deferred 信号
-- `session-meta.json`：更新 `last_digest_session`
-- 清除已消费的 pending signals
-- 在 `Meta-Evolution` 章节记录进化策略的任何调整
-
-**手动触发**：
-- `/{prefix}-evolve` — 立即执行进化分析
-- `/{prefix}-digest` — 查看当前进化状态
-```
-
-### 进化系统数据流
-
-```
-用户日常使用 skills
-    ↓ (hooks 自动捕获，零延迟)
-raw/ 原始数据（prompt、tool 调用、响应）
-    ↓ (SessionEnd 自动预处理 — digest.py)
-pending-signals.jsonl
-  ├── correction (🟠 0.5)     — 用户纠正
-  ├── instruction (⚫ 0.9)    — 显式指令
-  ├── chain (🔴 0.8)          — 失败→纠正链（含根因）
-  ├── pattern (🟡 0.3~🔴 0.8) — 热文件/高频命令
-  └── failure (🟡 0.4)        — 命令失败
-  + cluster_id 聚类标识
-  + 去重（重复信号 → 信心 +0.1）
-    ↓ (积累 ≥5 条 或 ≥3 个会话 → 触发)
-Claude 读取 digest + signals
-  → 信心优先排序
-  → 聚类合并分析
-  → 生成进化提议
-  → 体积守护检查
-    ↓ (用户确认)
-写入 skill（带信心标记） + 更新 digest + 元进化记录
-    ↓
-digest 成为下次分析的起点（增量，不从零开始）
-```
+| Skill 类型 | 侧重点 | 体积上限 |
+|-----------|--------|---------|
+| `dev` | 新命令、环境变量、依赖服务变化 | 15KB |
+| `commit` | commit type 涌现、message 风格演变 | 10KB |
+| `bugfix` | 每次修复自动沉淀记录、更新速查索引 | 20KB（含 records） |
+| `skill`（元技能） | 新 skill 创建时更新目录表、跨 skill 一致性 | 15KB |
+| `api` | 新端点模式、错误码、认证方案变更 | 15KB |
+| `db` | Schema 变更、查询模式、迁移经验 | 15KB |
+| `review` | 新审查规则、误报规则剔除 | 15KB |
+| `test` | 新测试模式、覆盖率、断言风格 | 15KB |
+| `research` | 评估维度扩展、对比指标 | 15KB |
 
 ---
 
@@ -1009,19 +912,7 @@ source: claude-skill-evo
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新命令发现、环境变量变更、依赖服务变化
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：命令路径变更、环境变量增删、服务端口变化
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新命令发现、环境变量变更、依赖服务变化}
 ```
 
 ### 模板：commit
@@ -1056,19 +947,7 @@ source: claude-skill-evo
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新 commit type 涌现、message 风格演变
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：commit 规范与实际提交不一致
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新 commit type 涌现、message 风格演变}
 ```
 
 ### 模板：bugfix
@@ -1123,24 +1002,9 @@ source: claude-skill-evo
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
+{按注入模板生成，侧重点：每次修复自动沉淀记录、更新速查索引}
 
-### Auto-Learn — 侧重：每次修复自动沉淀记录、更新速查索引
-
-每次 bug 修复完成后，**必须**：
-1. 将修复经验写入 `records/` 目录
-2. 更新「已知 Bug 速查索引」表
-3. 如果发现重复 bug 模式（≥2 次相似问题），提议写入预防规范
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：记录中的代码片段与当前代码不匹配
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+**Bugfix 专属进化**：每次 bug 修复完成后，必须将经验写入 `records/`、更新速查索引表。重复 bug 模式（≥2 次）提议写入预防规范。
 ```
 
 ### 模板：skill (元技能)
@@ -1217,36 +1081,9 @@ source: claude-skill-evo
 
 ## 自我进化协议
 
-> 本 skill 作为元技能，承担进化引擎职责 + 元进化（进化策略本身的进化）。
+{按注入模板生成，侧重点：新 skill 创建时更新目录表、跨 skill 一致性检查}
 
-### Auto-Learn — 侧重：新 skill 创建时更新目录表、检测 skill 间矛盾
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：目录表与实际 skill 不一致、版本号过旧
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Meta-Evolution（元进化）
-
-> 元技能的独有职责：评估进化策略本身是否需要调整。
-
-每次 Evolve 分析完成后，额外检查：
-1. **信心阈值**：当前的信心评分规则是否合理？（噪音太多 → 提高基础信心；好信号被忽略 → 降低阈值）
-2. **触发频率**：≥5 信号触发是否合适？（太频繁 → 调高；太稀疏 → 调低）
-3. **检测模式**：correction/instruction 的正则是否遗漏了新的表达方式？
-4. **体积趋势**：各 skill 的体积增长是否健康？
-5. **进化效果**：上次写入的规则是否被用户遵循？（如果没有 → 可能是错误进化）
-
-记录到 `evolution-digest.md` 的 `Meta-Evolution` 章节。
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
-
-### Session Review
-
-{标准 Session Review 流程}
+**元技能专属**：作为元技能，额外关注进化策略本身是否需要调整——进化信号是否噪音太多、好的发现是否被忽略、各 skill 体积增长是否健康。
 ```
 
 ### 模板：evolve
@@ -1255,8 +1092,7 @@ source: claude-skill-evo
 ---
 name: {prefix}-evolve
 description: >
-  触发 Skill 进化分析。读取跨会话积累的交互信号，对比现有 skill 内容，
-  生成进化提议并等待确认。
+  手动触发 Skill 进化分析。扫描所有 skill，对比项目现状，生成更新提议。
   触发词：进化、evolve、优化 skill、skill 进化、skill 更新、进化分析。
 version: 1.0.0
 source: claude-skill-evo
@@ -1264,122 +1100,32 @@ source: claude-skill-evo
 
 # Skill 进化分析
 
-> 读取进化系统积累的信号，分析并提议 skill 更新。
+> 扫描现有 skill，对比项目现状，提议更新。日常工作中进化会自动发生，本命令用于主动触发全量检查。
 
 ## 执行步骤
 
-1. **读取 checkpoint**：`.claude/evolution/evolution-digest.md`
-2. **读取新信号**：`.claude/evolution/pending-signals.jsonl`（带信心评分和聚类标识）
-3. **读取统计**：`.claude/evolution/session-meta.json`
-4. **信心优先排序**：⚫/🔴 (≥0.7) → 直接提议；🟠 (0.5-0.6) → 温和提议；🟡 (<0.5) → 标记 deferred
-5. **聚类合并**：相同 cluster_id 的信号归组分析，避免重复提议
-6. **逐个对比**：`.claude/skills/{prefix}-*/SKILL.md`
-7. **体积检查**：目标 skill >12KB → 先压缩再写入
-8. **生成提议**，等待用户确认
-9. 确认后写入 skill（带信心标记）、更新 digest、清空已消化信号
-10. **元进化检查**：评估进化策略本身是否需要调整，记录到 digest
-
-## 信号类型
-
-| 类型 | 来源 | 基础信心 | 处理方式 |
-|------|------|---------|---------|
-| `instruction` | 显式指令（"记住"、"以后都"） | ⚫ 0.9 | 直接提议写入对应 skill |
-| `chain` | 失败→纠正链 | 🔴 0.8 | 提议写入根因 + 修复方案 |
-| `correction` | 用户纠正（"不对"、"应该是"） | 🟠 0.5 | 提议写入对应 skill |
-| `pattern` | 重复操作模式（热点文件、常用命令） | 🟡 0.3+ | ≥2 次或信心≥0.5才提议 |
-| `failure` | 命令执行失败 | 🟡 0.4 | 检查是否需要更新 dev skill |
+1. 读取所有 `.claude/skills/{prefix}-*/SKILL.md`
+2. 扫描项目现状（目录结构、package.json、配置文件等）
+3. 对比 skill 内容与项目现状，找出不一致
+4. 检查各 skill 体积（>12KB 警告）
+5. 生成提议，逐条展示，等待用户确认
+6. 确认后写入 skill（version patch +1）
 
 ## 提议展示格式
 
-```
-🧬 Skill 进化分析（基于最近 {N} 个会话的 {M} 条信号）
-
-📊 信号分布：⚫ {n1} 条 | 🔴 {n2} 条 | 🟠 {n3} 条 | 🟡 {n4} 条（deferred）
-
-📝 建议更新（按信心排序）：
-1. {prefix}-{skill} v{old} → v{new} [{信心标记}]
-   来源：[S#{session}] {信号描述}
-   变更：在「{章节名}」{添加/修改/删除} {内容摘要}
-   预览：
-   ---
-   {将写入的具体内容}
-   ---
-
-⏭️ Deferred（🟡 低信心，继续积累）：
-N. {描述} — 信心 {score}，再观察 {N} 个会话
-
-📏 体积报告：
-- {prefix}-{skill}: {size}KB {✅/⚠️}
-
-逐条确认？全部写入？跳过？
-```
-
-**输出示例**：
-
-```
-🧬 Skill 进化分析（基于最近 3 个会话的 7 条信号）
-
-📊 信号分布：⚫ 1 条 | 🔴 2 条 | 🟠 2 条 | 🟡 2 条（deferred）
-
-📝 建议更新（按信心排序）：
-1. app-dev v1.2.0 → v1.2.1 [⚫ 0.9]
-   来源：[S#a3f2] 用户说"以后 API 调用都用 async/await，不用 callback"
-   变更：在「网络请求规范」添加 async/await 为默认模式
-   预览：
-   ---
-   ### 网络请求
-   - 使用 async/await 模式，不使用 callback
-   - 错误处理使用 do-catch
-   ---
-
-2. app-bugfix v1.0.0 → v1.0.1 [🔴 0.8]
-   来源：[S#b7d1] `pod install` 失败 → 用户纠正"先删 Podfile.lock 再装"
-   变更：在「已知 Bug 速查索引」添加 CocoaPods 安装失败修复
-   预览：
-   ---
-   | pod install | 依赖 | pod-install-fix.md | 删除 Podfile.lock 后重新安装 |
-   ---
-
-⏭️ Deferred（🟡 低信心，继续积累）：
-3. 检测到 SwiftUI Preview 频繁使用 — 信心 0.3，再观察 2 个会话
-4. 检测到 git stash 使用 2 次 — 信心 0.4，再观察 1 个会话
-
-📏 体积报告：
-- app-dev: 8.2KB ✅
-- app-bugfix: 3.1KB ✅
-- app-commit: 2.8KB ✅
-
-逐条确认？全部写入？跳过？
-```
+对每条发现：
+- 说明在哪个 skill 的哪个章节发现了问题
+- 展示当前内容 vs 建议内容
+- 等待用户确认后再写入
 
 ## 质量控制
 
 | 规则 | 说明 |
 |------|------|
-| 信心优先 | ⚫/🔴 (≥0.7) 先处理，🟠 (0.5-0.6) 次之，🟡 (<0.5) deferred |
-| 证据阈值 | 指令/链：单次即提议。纠正：单次提议。模式：≥2 次或信心≥0.5 |
-| 不重复提议 | 对比 digest 的 Confirmed Patterns，已存在的跳过 |
+| 不重复 | 已存在于 skill 中的规范跳过 |
 | 矛盾检测 | 新规则与现有 skill 矛盾 → 展示冲突让用户选择 |
-| 暂缓机制 | 低信心 → 标记为 Deferred，在 digest 中记录，继续积累 |
 | 体积守护 | 写入前检查目标 skill 体积；>12KB 警告，>15KB 先压缩 |
-| 元进化 | 分析完成后评估进化策略是否需要调整 |
-
-## 写入后操作
-
-1. 更新 skill 文件（version patch +1，规则标注信心标记）
-2. 更新 `evolution-digest.md`：
-   - Confirmed Patterns 追加已确认条目（带信心标记）
-   - Deferred 追加低信心信号
-   - Correction History 追加纠正记录
-   - Failure-Correction Chains 追加链式记录
-   - Tool Usage Patterns 更新统计
-   - Pending Proposals 移除已处理的
-   - Evolution Log 追加版本变更
-   - Meta-Evolution 记录策略调整（如有）
-   - Size Report 更新各 skill 体积
-3. 更新 `session-meta.json`（last_digest_session、pending_signal_count）
-4. 清空 `pending-signals.jsonl` 中已消化的信号
-5. 追加到 `{prefix}-skill/evolution.log`
+| 具体可操作 | 新规则必须具体，有 Before/After 示例 |
 ```
 
 ### 模板：digest
@@ -1388,59 +1134,27 @@ N. {描述} — 信心 {score}，再观察 {N} 个会话
 ---
 name: {prefix}-digest
 description: >
-  查看 Skill 进化摘要。展示已确认规范、待处理提议、纠正历史、
-  工具使用热点、进化日志。只读操作，不做任何修改。
-  触发词：digest、进化摘要、进化记录、skill 状态、进化历史、进化报告。
+  查看 Skill 体系状态。展示各 skill 版本、体积、最近变更记录。只读不修改。
+  触发词：digest、进化摘要、skill 状态、进化历史。
 version: 1.0.0
 source: claude-skill-evo
 ---
 
-# Skill 进化摘要
+# Skill 体系状态
 
-> 展示进化系统的当前状态，只读不修改。
+> 只读展示，不做任何修改。
 
 ## 执行步骤
 
-1. 读取 `.claude/evolution/evolution-digest.md`
-2. 读取 `.claude/evolution/session-meta.json`
-3. 统计 `.claude/evolution/pending-signals.jsonl` 行数
+1. 扫描 `.claude/skills/{prefix}-*/SKILL.md`，读取 frontmatter 的 name/version
+2. 统计各文件体积
+3. 用 `git log` 查看各 skill 最近变更
 4. 格式化展示
 
 ## 输出格式
 
-```
-📊 Skill 进化状态
-
-会话总数：{total_sessions}
-上次分析：Session #{last_digest_session}（{日期}）
-待处理信号：{pending_signal_count} 条
-  ⚫ {n1} | 🔴 {n2} | 🟠 {n3} | 🟡 {n4}
-
-📏 体积报告：
-  {prefix}-dev: {size}KB {✅/⚠️}
-  {prefix}-api: {size}KB {✅/⚠️}
-  ...
-
-───────────────────────────────────
-
-{evolution-digest.md 的完整内容，格式化展示}
-
-───────────────────────────────────
-
-💡 执行 /{prefix}-evolve 可触发进化分析
-```
-
-## 无进化数据时
-
-```
-📊 Skill 进化状态
-
-进化系统已配置，但还没有积累数据。
-正常使用 skills 即可——系统会自动在后台捕获交互信号。
-
-积累 ≥5 条信号后，会在 SessionStart 时自动提示进化分析。
-也可以随时执行 /{prefix}-evolve 手动触发。
-```
+列出每个 skill 的名称、版本、体积（标注是否超警戒线）、最近一次修改时间和提交摘要。
+末尾提示 `/{prefix}-evolve` 可触发主动进化分析。
 ```
 
 ### 模板：api
@@ -1569,19 +1283,7 @@ src/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新端点模式、错误码扩展、认证方案变更
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：API 路径变更、依赖框架 API 废弃、认证方式迭代
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新端点模式、错误码扩展、认证方案变更}
 ```
 
 ### 模板：frontend
@@ -1703,19 +1405,7 @@ src/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新组件模式、Design Token 扩展、UI 规范演变
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：组件 API 变更、废弃样式类、路由结构变化
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新组件模式、Design Token 扩展、UI 规范演变}
 ```
 
 ### 模板：mobile
@@ -1824,19 +1514,7 @@ constants/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新页面模式、导航变更、设计 Token 扩展
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：导航路径变更、组件 API 废弃、设计 Token 不一致
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新页面模式、导航变更、设计 Token 扩展}
 ```
 
 ### 模板：db
@@ -1959,19 +1637,7 @@ src/db/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：Schema 变更记录、新查询模式、迁移经验
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：Schema 定义与实际数据库不匹配、ORM API 变更
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：Schema 变更记录、新查询模式、迁移经验}
 ```
 
 ### 模板：cloud
@@ -2059,19 +1725,7 @@ services:
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新服务上线、配置变更、运维经验沉淀
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：服务 URL 变更、废弃的部署命令、过期的环境配置
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新服务上线、配置变更、运维经验沉淀}
 ```
 
 ### 模板：test
@@ -2191,19 +1845,7 @@ tests/testfiles/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新测试模式、覆盖率变化、断言风格演变
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：测试命令变更、框架 API 废弃、测试 helper 过时
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新测试模式、覆盖率变化、断言风格演变}
 ```
 
 ### 模板：review
@@ -2308,19 +1950,7 @@ source: claude-skill-evo
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新审查规则发现、误报规则剔除
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：项目规范变更导致审查规则过时
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新审查规则发现、误报规则剔除}
 ```
 
 ### 模板：research
@@ -2520,19 +2150,7 @@ git clone --depth 1 --branch {tag_or_branch} {repo_url} reference/{repo_name}
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：评估维度扩展、新的对比指标、源码分析模式优化
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：推荐方案已过时、reference/ 中的源码版本过旧
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：评估维度扩展、新的对比指标、源码分析模式优化}
 ```
 
 ### 模板：ref
@@ -2638,19 +2256,7 @@ git clone --depth 1 {repo_url} /tmp/{repo_name}
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新的分析维度、更好的报告结构
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：参考项目已归档/重大重构
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新的分析维度、更好的报告结构}
 ```
 
 ### 模板：experiment
@@ -2767,19 +2373,7 @@ experiments/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新的实验模式、评估指标扩展、工具链变化
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：实验工具/API 变更、指标计算方式过时
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新的实验模式、评估指标扩展、工具链变化}
 ```
 
 ### 模板：admin
@@ -2907,19 +2501,7 @@ src/
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新的 UI 模式、权限角色扩展、通用组件发现
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：路由结构变更、UI 组件库 API 变更、权限模型变化
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新的 UI 模式、权限角色扩展、通用组件发现}
 ```
 
 ### 模板：migration
@@ -3043,19 +2625,7 @@ Phase 4: 移除旧代码和 adapter
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：新的迁移模式、回滚经验、验证步骤完善
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：旧系统映射关系过时、迁移工具变更
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：新的迁移模式、回滚经验、验证步骤完善}
 ```
 
 ### 模板：product
@@ -3281,19 +2851,7 @@ C. 两者都需调整 → 说明新的期望行为
 
 ## 自我进化协议
 
-> 本 skill 具备自我感知与进化能力。
-
-### Auto-Learn — 侧重：功能模块增删、设计原则演变、冲突处理经验
-
-{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
-
-### Stale Detection — 侧重：功能模块目录与实际 features/ 文件不一致、产品定位变化
-
-{标准 Stale Detection 表格 + 处理流程}
-
-### Size Guard — ≤ 15KB 守护
-
-{标准 Size Guard 压缩策略}
+{按注入模板生成，侧重点：功能模块增删、设计原则演变、冲突处理经验}
 
 > **注意**：本 skill 主文件保持索引角色，功能细节分散到 `features/` 子文件中。
 > 当主文件接近体积上限时，优先将内容拆分到子文件，而非删减。
@@ -3315,10 +2873,8 @@ ls .claude/CLAUDE.md
 # 验证 frontmatter 格式
 grep -h "^name:\|^version:" .claude/skills/{prefix}-*/SKILL.md
 
-# 验证进化协议注入（含信心等级 + 体积守护）
+# 验证进化协议注入
 grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
-grep -l "Size Guard" .claude/skills/{prefix}-*/SKILL.md
-grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
 ```
 
 ### 5.2 完成报告
@@ -3337,7 +2893,7 @@ grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
 📂 .claude/skills/{prefix}-api/SKILL.md      — API 规范
 ...
 
-🧬 所有 skill 已注入「自我进化协议 v3.1」（信心评分 + 体积守护 + 元进化）
+🧬 所有 skill 已注入「自我进化协议」（被动进化 + 体积守护）
 
 使用方式：
   /{prefix}-dev         查看本地开发命令
@@ -3392,7 +2948,6 @@ grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
 ### 进化协议一致性
 
 - 每个生成的 skill 必须包含「自我进化协议」章节
-- 协议结构统一：Auto-Learn（含信心等级）+ Stale Detection + Size Guard
+- 协议结构统一：进化信号表 + 确认流程 + Size Guard
 - 侧重点根据 skill 类型调整（参考进化侧重表）
-- 元技能（{prefix}-skill）额外承担进化引擎 + 元进化职责
-- 信心标记 (🟡/🟠/🔴/⚫) 贯穿所有进化产出物
+- CLAUDE.md 中必须包含进化提示章节（让所有对话都能触发进化）
