@@ -2951,3 +2951,211 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 - 协议结构统一：进化信号表 + 确认流程 + Size Guard
 - 侧重点根据 skill 类型调整（参考进化侧重表）
 - CLAUDE.md 中必须包含进化提示章节（让所有对话都能触发进化）
+
+---
+
+## Design Skill 生成指南
+
+> 仅当 Phase 1 嗅探到设计系统（`DESIGN_PLATFORM ≠ none`）时执行本章节。
+> 生成文件：`.claude/skills/{prefix}-design/SKILL.md`
+
+### 通用生成规则
+
+1. 读取 `DESIGN_TOKEN_FILES` 中的文件，提取颜色、间距、字号、圆角 token
+2. 扫描到的值直接写入 skill；扫描不到的字段用占位符 `{{KEY: 说明}}`
+   - 占位符格式锁定为 `{{KEY: 说明}}`，仅供用户手动替换，不作结构化标记
+   - `DESIGN_TOKEN_FILES` 为空时，所有 token 字段均使用占位符
+3. `## 实现顺序规范` 章节内容由生成时的已有 skill 列表自动填入；
+   若尚无其他 skill，写"暂无依赖，直接参考 design skill"
+4. 所有平台均包含 `## 自我进化协议` 章节（简洁版，≤15 行），侧重：token 文件变更时触发 STALE 检测
+
+---
+
+### 平台 A：React Native / Expo
+
+> 当 `DESIGN_PLATFORM = rn` 时，按以下结构生成 design skill。
+
+```markdown
+---
+name: {prefix}-design
+description: >
+  {项目名} 设计系统完整指南。实现 UI 组件、还原设计稿、查询 Design Token 时调用此 skill。
+  触发词：实现UI、实现组件、设计还原、Figma、截图实现、token查询、颜色token、设计系统、Dark Mode。
+version: 1.0.0
+source: claude-skill-evo
+---
+
+# {项目名} Design System Skill
+
+> Token 文件：{DESIGN_TOKEN_FILES[0] 或 "未检测到，请手动填入"}
+
+## 实现顺序规范
+
+{Phase 2 已有 skill 列表自动填入；若尚无其他 skill，写"暂无依赖，直接参考 design skill"}
+
+## 调用方式
+
+**Figma URL** — 调用 Figma MCP 获取设计上下文，映射 token 后实现。
+**截图/图片** — 图片颜色必须映射到语义 token，不得硬编码 hex。图片默认为 Light 模式。
+**文字描述** — 找到代码位置，将描述转为 token 后修改。
+
+**共同规则：实现前必须先搜索现有组件**，确认无相同/相似组件后再新建。
+
+## Light / Dark 模式规范
+
+- 颜色必须用语义 token，通过主题 hook 获取，不得放 `StyleSheet.create`
+- `StyleSheet.create` 只放静态 token（间距、字号、圆角），颜色必须内联
+- 禁止：`"#FFFFFF"`、`"rgba(0,0,0,0.1)"` 等，一律替换为对应 token
+
+## 颜色 Token 速查
+
+| Token | Light | Dark | 用途 |
+|-------|-------|------|------|
+{{COLOR_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入；格式：token名 | light值 | dark值 | 用途}}
+
+## 间距 / 字号 / 圆角 Token
+
+| 类型 | Token | 值 |
+|------|-------|-----|
+{{SPACING_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入}}
+{{TYPOGRAPHY_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入}}
+{{RADIUS_TOKENS: 从 DESIGN_TOKEN_FILES 扫描填入}}
+
+## 禁止事项
+
+| 禁止 | 原因 |
+|------|------|
+| `backgroundColor: "#FFFFFF"` 等硬编码颜色 | 不跟随主题 |
+| 颜色放在 `StyleSheet.create` | Light/Dark 无法切换 |
+| 遇到不确定的设计自行猜测 | 必须向用户提问 |
+| 未搜索直接新建组件 | 优先复用现有实现 |
+
+## 自我进化协议
+
+| 信号 | 行动 |
+|------|------|
+| skill 描述的 token 与 token 文件实际不符 | 立即说明「⚠️ skill 内容可能过时」|
+| 遇到 skill 未覆盖但需要规范的设计场景 | 记录为待补充 |
+| 用户纠正了 skill 描述的做法 | 标记，任务后提议更新 |
+
+高风险过时信号：token 文件新增/删除/改名 → 颜色速查表可能过时。
+```
+
+---
+
+### 平台 B：Web（React/Vue/Next.js）
+
+> 当 `DESIGN_PLATFORM = web` 时，按以下结构生成 design skill。
+
+```markdown
+---
+name: {prefix}-design
+description: >
+  {项目名} 设计系统完整指南。实现 UI 组件、查询 Design Token 时调用此 skill。
+  触发词：实现UI、实现组件、token查询、颜色token、设计系统、Dark Mode、Tailwind。
+version: 1.0.0
+source: claude-skill-evo
+---
+
+# {项目名} Design System Skill
+
+> Token 文件：{DESIGN_TOKEN_FILES[0] 或 "未检测到，请手动填入"}
+
+## 实现顺序规范
+
+{Phase 2 已有 skill 列表自动填入；若尚无其他 skill，写"暂无依赖，直接参考 design skill"}
+
+## 调用方式
+
+同通用版（Figma URL / 截图 / 文字描述），图片颜色映射到 CSS variables / Tailwind class。
+实现前必须先搜索现有组件目录，确认无重复后再新建。
+
+## 颜色使用规范
+
+- Tailwind 项目：使用 `className="text-{token}"` / `bg-{token}` 等 class
+- CSS Variables 项目：使用 `var(--color-{token})`
+- 禁止：`color: "#333"` / `background-color: rgba(0,0,0,0.5)` 等裸 hex/rgba
+
+## Token 速查
+
+{{TAILWIND_CONFIG: 从 tailwind.config 扫描填入自定义颜色/间距 token；扫不到则为占位符}}
+
+## 禁止事项
+
+| 禁止 | 原因 |
+|------|------|
+| 裸写 hex 颜色 / rgba 值 | 不使用 token，无法统一主题 |
+| 裸写 px 间距值 | 不使用 spacing scale |
+| 遇到不确定的设计自行猜测 | 必须向用户提问 |
+| 未搜索直接新建组件 | 优先复用现有实现 |
+
+## 自我进化协议
+
+| 信号 | 行动 |
+|------|------|
+| skill 描述的 token 与 token 文件实际不符 | 立即说明「⚠️ skill 内容可能过时」|
+| 遇到 skill 未覆盖但需要规范的设计场景 | 记录为待补充 |
+| 用户纠正了 skill 描述的做法 | 标记，任务后提议更新 |
+
+高风险过时信号：tailwind.config 变更 → Token 速查可能过时。
+```
+
+---
+
+### 平台 C：SwiftUI
+
+> 当 `DESIGN_PLATFORM = swiftui` 时，按以下结构生成 design skill。
+
+```markdown
+---
+name: {prefix}-design
+description: >
+  {项目名} 设计系统完整指南。实现 SwiftUI 组件、查询 Design Token 时调用此 skill。
+  触发词：实现UI、实现组件、token查询、颜色token、设计系统、Dark Mode、Color asset。
+version: 1.0.0
+source: claude-skill-evo
+---
+
+# {项目名} Design System Skill
+
+> Token 文件：{DESIGN_TOKEN_FILES[0] 或 "未检测到，请手动填入"}
+
+## 实现顺序规范
+
+{Phase 2 已有 skill 列表自动填入；若尚无其他 skill，写"暂无依赖，直接参考 design skill"}
+
+## 调用方式
+
+同通用版，图片颜色映射到 Color asset 或 SwiftUI Color extension。
+实现前必须先搜索现有组件，确认无重复后再新建。
+
+## 颜色适配规范
+
+- 使用 Color assets（Assets.xcassets）：`Color("tokenName")`
+- 使用自定义 Color extension：`Color.{tokenName}`（若项目有）
+- 禁止：`.foregroundColor(.white)` / `Color(red:green:blue:)` 等硬编码
+
+## Token 速查
+
+{{COLOR_TOKENS: 从 Token 文件扫描填入；格式：asset名称 | 用途}}
+{{SPACING_TOKENS: 从 Token 文件扫描填入}}
+
+## 禁止事项
+
+| 禁止 | 原因 |
+|------|------|
+| `.foregroundColor(.white)` 等硬编码颜色 | 不支持 Dark Mode 自适应 |
+| `.padding(16)` 等硬编码间距 | 不使用 spacing token |
+| 遇到不确定的设计自行猜测 | 必须向用户提问 |
+| 未搜索直接新建组件 | 优先复用现有实现 |
+
+## 自我进化协议
+
+| 信号 | 行动 |
+|------|------|
+| skill 描述的 token 与 token 文件实际不符 | 立即说明「⚠️ skill 内容可能过时」|
+| 遇到 skill 未覆盖但需要规范的设计场景 | 记录为待补充 |
+| 用户纠正了 skill 描述的做法 | 标记，任务后提议更新 |
+
+高风险过时信号：Token 文件变更 → Token 速查可能过时。
+```
