@@ -321,10 +321,11 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | 有 Docker/部署 | `cloud` | 部署流程、环境管理、监控 |
 | 有测试框架 | `test` | 测试规范、测试命令 |
 | 需要代码审查 | `review` | 代码审查工作流（多 agent 并行审查） |
-| 需要技术调研 | `research` | 技术选型评估报告格式 |
-| 有参考代码目录 | `ref` | 参考源码分析工作流 |
+| 需要技术调研 | `research` | 技术选型评估 + 源码深度分析（含 shallow clone） |
+| 有参考代码目录 | `ref` | 参考源码分析工作流（轻量，纯阅读） |
 | 有 AI/ML 相关 | `experiment` | 实验设计与执行 |
 | 有 Admin 后台 | `admin` | 后台管理开发规范 |
+| 有产品设计需求 | `product` | 产品设计文档索引、功能模块管理、设计规范 |
 | Monorepo | `migration` | 跨包迁移规范 |
 
 ### 2.2 向用户展示规划
@@ -591,6 +592,7 @@ echo '{"total_sessions":0,"last_digest_session":0,"pending_signal_count":0}' \
 .claude/evolution/raw/
 .claude/evolution/pending-signals.jsonl
 .claude/evolution/session-meta.json
+reference/
 ```
 
 ### 4.2 优化模式的更新规则
@@ -721,7 +723,7 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 
 ### 核心理念
 
-> 锻造出的 skill 不是静态文档，而是活的知识体——能感知自身状态，能从经验中学习，能主动提议更新。
+> 锻造出的 skill 不是静态文档，而是活的知识体——能感知自身状态，能从经验中学习，能主动提议更新。进化有信心梯度、有体积边界、有安全门控。
 
 每个生成的 skill 末尾必须包含以下「自我进化协议」章节。根据 skill 类型适当调整措辞，但协议结构保持一致。
 
@@ -740,20 +742,36 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 
 **触发信号**：
 
-| 信号 | 触发条件 | 行为 |
-|------|---------|------|
-| 用户纠正 | 用户说"不对"、"不要这样"、"应该是..." | 立即提议将正确做法写入本 skill |
-| 重复模式 | 同一操作方式出现 ≥2 次 | 提议写入本 skill 作为规范 |
-| 显式指令 | 用户说"记住这个"、"以后都这样做" | 直接提议写入本 skill |
-| 新发现 | 发现项目中存在但 skill 未记录的规范 | 提议补充到本 skill |
-| 工具变更 | 检测到项目依赖/工具链发生变化 | 提议更新相关 skill 内容 |
+| 信号 | 触发条件 | 信心 | 行为 |
+|------|---------|------|------|
+| 用户纠正 | 用户说"不对"、"应该是..." | 🟠 0.5 | 提议将正确做法写入本 skill |
+| 失败-纠正链 | 命令失败后用户纠正 | 🔴 0.8 | 提议写入失败根因 + 正确做法 |
+| 重复模式 | 同一操作方式出现 ≥2 次 | 🟡~🔴 0.3~0.8 | 提议写入本 skill 作为规范 |
+| 显式指令 | 用户说"记住这个"、"以后都这样做" | ⚫ 0.9 | 直接提议写入本 skill |
+| 新发现 | 发现项目中存在但 skill 未记录的规范 | 🟡 0.3 | 标记为试探性，待确认后提升 |
+| 命令失败 | 命令执行失败（exit code ≠ 0） | 🟡 0.4 | 检查是否需要更新 dev skill |
+| 工具变更 | 检测到项目依赖/工具链发生变化 | 🟠 0.5 | 提议更新相关 skill 内容 |
+
+**信心等级**（决定提议的优先级和措辞强度）：
+
+| 标记 | 范围 | 含义 | 行为 |
+|------|------|------|------|
+| 🟡 | 0.3-0.4 | 试探性 | 仅记录，不主动提议；积累到 ≥2 次后升级 |
+| 🟠 | 0.5-0.6 | 中等信心 | 提议但语气温和："我注意到可能需要..." |
+| 🔴 | 0.7-0.8 | 强信心 | 明确提议："建议写入以下规范..." |
+| ⚫ | 0.9 | 确定性 | 强烈提议："这是一条确定的规范，建议立即写入" |
+
+**信心变化规则**：
+- **升高**：相同模式再次出现 (+0.1)、用户未纠正建议的行为 (+0.05)、跨 session 重复 (+0.15)
+- **降低**：用户明确否定 (-0.2)、长期未再观察到 (-0.1/月)、出现矛盾证据 (-0.15)
 
 **确认流程**（不擅自修改）：
 
 ```
-🔔 我注意到一个可以写入 skill 的规范：
+🔔 [信心: {等级}] 我注意到一个可以写入 skill 的规范：
 
 {描述发现的规范}
+{如果是失败-纠正链：附上根因分析}
 
 建议写入：{prefix}-{skill}/SKILL.md 的「{章节名}」
 内容预览：
@@ -768,6 +786,7 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 - 新规则必须具体、可操作（有 Before/After 示例）
 - 新规则不得与现有规则矛盾（如矛盾，需同时处理）
 - 写入后 version 的 patch 号 +1（如 1.0.0 → 1.0.1）
+- 每条写入的规则标注信心等级标记
 
 ### Stale Detection（过期检测）
 
@@ -803,19 +822,47 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 是否更新？(Y/N)
 ```
 
+### Size Guard（体积守护）
+
+> 防止 skill 文件无限膨胀，保持上下文窗口高效利用。
+
+**守护线**：每个 SKILL.md ≤ 15KB（约 400 行）
+
+**触发压缩的条件**：
+- 文件体积 > 12KB → 提前警告
+- 文件体积 > 15KB → 写入前必须先压缩
+
+**压缩策略**：
+1. 合并相似规则（Before/After 示例保留最典型的 1 个）
+2. 低信心 (🟡) 且超过 30 天未被引用的规则 → 移入归档注释 `<!-- ARCHIVED: ... -->`
+3. 经验条目超过 20 条时 → 保留 Top 10 高信心 + 将其余压缩为 1 行摘要
+4. 移除已被更高信心规则覆盖的旧规则
+
+**压缩流程**：
+```
+📏 体积守护：{prefix}-{skill}/SKILL.md 当前 {size}KB，超过 12KB 警戒线。
+建议压缩以下内容：
+1. [🟡 0.3] {规则A} — 30天未引用，建议归档
+2. [🟠 0.5] {规则B} 和 {规则C} — 内容相似，建议合并
+
+是否执行压缩？(Y/N)
+```
+
 ### Session Review（会话回顾）
 
 每次长会话结束前（用户说"好了"、"结束"、"就这样"），主动检查：
 
 1. **本次会话中是否发现了新的项目规范？** → 提议写入相关 skill
-2. **本次会话中是否修正了 skill 中的错误？** → 提议更新
-3. **本次会话中是否有值得记录的经验？** → 提议写入 bugfix records 或对应 skill
+2. **本次会话中是否有失败-纠正链值得沉淀？** → 提议写入根因 + 修复方案
+3. **本次会话中是否修正了 skill 中的错误？** → 提议更新
+4. **本次会话中是否有值得记录的经验？** → 提议写入 bugfix records 或对应 skill
 
 ```
 📝 会话回顾——我在本次会话中发现了以下可以沉淀的内容：
 
-1. [新规范] {描述} → 建议写入 {prefix}-{skill}
-2. [经验] {描述} → 建议写入 {prefix}-bugfix/records/
+1. [🔴 新规范] {描述} → 建议写入 {prefix}-{skill}
+2. [🔴 失败链] {失败→纠正} → 建议写入根因分析
+3. [🟠 经验] {描述} → 建议写入 {prefix}-bugfix/records/
 
 是否写入？逐条确认还是全部写入？
 ```
@@ -825,17 +872,17 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 
 不同 skill 的进化协议侧重点不同：
 
-| Skill 类型 | 进化侧重 |
-|-----------|---------|
-| `dev` | 新命令发现、环境变量变更、依赖服务变化 |
-| `commit` | 新的 commit type 涌现、message 风格演变 |
-| `bugfix` | 每次修复自动沉淀记录、更新速查索引 |
-| `skill`（元技能） | 新 skill 创建时自动更新目录表、跨 skill 一致性检查 |
-| `api` | 新端点模式、错误码扩展、认证方案变更 |
-| `db` | Schema 变更记录、新的查询模式、迁移经验 |
-| `review` | 新的审查规则发现、误报规则剔除 |
-| `test` | 新的测试模式、覆盖率变化、断言风格演变 |
-| `research` | 评估维度扩展、新的对比指标 |
+| Skill 类型 | Auto-Learn 侧重 | 失败链侧重 | 体积警戒 |
+|-----------|----------------|-----------|---------|
+| `dev` | 新命令发现、环境变量变更、依赖服务变化 | 构建/启动失败 → 环境修复 | 15KB |
+| `commit` | 新的 commit type 涌现、message 风格演变 | hook 失败 → 规范调整 | 10KB |
+| `bugfix` | 每次修复自动沉淀记录、更新速查索引 | 修复回退 → 根因分析 | 20KB（含 records） |
+| `skill`（元技能） | 新 skill 创建时自动更新目录表、跨 skill 一致性检查 | 进化冲突 → 规则仲裁 | 15KB |
+| `api` | 新端点模式、错误码扩展、认证方案变更 | 请求失败 → 接口变更 | 15KB |
+| `db` | Schema 变更记录、新的查询模式、迁移经验 | 迁移失败 → 回滚方案 | 15KB |
+| `review` | 新的审查规则发现、误报规则剔除 | 审查遗漏 → 规则补充 | 15KB |
+| `test` | 新的测试模式、覆盖率变化、断言风格演变 | 测试误报 → 断言修正 | 15KB |
+| `research` | 评估维度扩展、新的对比指标 | — | 15KB |
 
 ### Evolution System Integration（进化系统集成）
 
@@ -844,19 +891,29 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 ```markdown
 ### Evolution System Integration
 
-本项目已配置跨会话进化系统，与 Auto-Learn 协作方式如下：
+本项目已配置跨会话进化系统（v3.1），与 Auto-Learn 协作方式如下：
 
 **分工**：
 - **Auto-Learn**：实时的、会话内的即时提议（用户纠正 → 立刻提议写入）
-- **进化系统**：跨会话的、积累分析（多次会话的数据 → 批量提议）
+- **进化系统**：跨会话的、积累分析（多次会话的数据 → 批量提议 + 信心评分）
 
 **当收到 `<evolution-trigger>` 注入时**：
 1. 不打断用户当前任务
 2. 在任务完成后或合适时机读取进化数据
-3. 读取 `.claude/evolution/evolution-digest.md`（上次总结）
-4. 读取 `.claude/evolution/pending-signals.jsonl`（新增信号）
-5. 对比本 skill 内容，生成进化提议
-6. 等待用户确认后写入
+3. 读取 `.claude/evolution/evolution-digest.md`（上次总结 + 元进化记录）
+4. 读取 `.claude/evolution/pending-signals.jsonl`（带信心评分的信号）
+5. **信心优先**：先处理 ⚫/🔴 高信心信号，🟡 低信心信号标记为 deferred
+6. **聚类处理**：相同 cluster_id 的信号一起分析，避免重复提议
+7. **体积检查**：写入前检查目标 skill 文件体积，超过 12KB 先触发压缩
+8. 对比本 skill 内容，生成进化提议
+9. 等待用户确认后写入
+10. **元进化**：分析完成后，评估进化过程本身是否有改进空间
+
+**进化分析完成后必须更新**：
+- `evolution-digest.md`：写入本次确认的 Patterns / Corrections / Deferred 信号
+- `session-meta.json`：更新 `last_digest_session`
+- 清除已消费的 pending signals
+- 在 `Meta-Evolution` 章节记录进化策略的任何调整
 
 **手动触发**：
 - `/{prefix}-evolve` — 立即执行进化分析
@@ -867,14 +924,25 @@ mkdir -p .claude/skills/{prefix}-bugfix/records
 
 ```
 用户日常使用 skills
-    ↓ (hooks 自动捕获)
+    ↓ (hooks 自动捕获，零延迟)
 raw/ 原始数据（prompt、tool 调用、响应）
-    ↓ (SessionEnd 自动预处理)
-pending-signals.jsonl（纠正、指令、模式、失败）
+    ↓ (SessionEnd 自动预处理 — digest.py)
+pending-signals.jsonl
+  ├── correction (🟠 0.5)     — 用户纠正
+  ├── instruction (⚫ 0.9)    — 显式指令
+  ├── chain (🔴 0.8)          — 失败→纠正链（含根因）
+  ├── pattern (🟡 0.3~🔴 0.8) — 热文件/高频命令
+  └── failure (🟡 0.4)        — 命令失败
+  + cluster_id 聚类标识
+  + 去重（重复信号 → 信心 +0.1）
     ↓ (积累 ≥5 条 或 ≥3 个会话 → 触发)
-Claude 读取 digest + signals → 生成提议
+Claude 读取 digest + signals
+  → 信心优先排序
+  → 聚类合并分析
+  → 生成进化提议
+  → 体积守护检查
     ↓ (用户确认)
-写入 skill + 更新 digest（checkpoint）
+写入 skill（带信心标记） + 更新 digest + 元进化记录
     ↓
 digest 成为下次分析的起点（增量，不从零开始）
 ```
@@ -924,11 +992,15 @@ source: skillforge
 
 ### Auto-Learn — 侧重：新命令发现、环境变量变更、依赖服务变化
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：命令路径变更、环境变量增删、服务端口变化
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：commit
@@ -967,11 +1039,15 @@ source: skillforge
 
 ### Auto-Learn — 侧重：新 commit type 涌现、message 风格演变
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：commit 规范与实际提交不一致
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：bugfix
@@ -1035,11 +1111,15 @@ source: skillforge
 2. 更新「已知 Bug 速查索引」表
 3. 如果发现重复 bug 模式（≥2 次相似问题），提议写入预防规范
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：记录中的代码片段与当前代码不匹配
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：skill (元技能)
@@ -1116,15 +1196,32 @@ source: skillforge
 
 ## 自我进化协议
 
-> 本 skill 作为元技能，承担进化引擎职责。
+> 本 skill 作为元技能，承担进化引擎职责 + 元进化（进化策略本身的进化）。
 
 ### Auto-Learn — 侧重：新 skill 创建时更新目录表、检测 skill 间矛盾
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：目录表与实际 skill 不一致、版本号过旧
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Meta-Evolution（元进化）
+
+> 元技能的独有职责：评估进化策略本身是否需要调整。
+
+每次 Evolve 分析完成后，额外检查：
+1. **信心阈值**：当前的信心评分规则是否合理？（噪音太多 → 提高基础信心；好信号被忽略 → 降低阈值）
+2. **触发频率**：≥5 信号触发是否合适？（太频繁 → 调高；太稀疏 → 调低）
+3. **检测模式**：correction/instruction 的正则是否遗漏了新的表达方式？
+4. **体积趋势**：各 skill 的体积增长是否健康？
+5. **进化效果**：上次写入的规则是否被用户遵循？（如果没有 → 可能是错误进化）
+
+记录到 `evolution-digest.md` 的 `Meta-Evolution` 章节。
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 
 ### Session Review
 
@@ -1151,28 +1248,35 @@ source: skillforge
 ## 执行步骤
 
 1. **读取 checkpoint**：`.claude/evolution/evolution-digest.md`
-2. **读取新信号**：`.claude/evolution/pending-signals.jsonl`
+2. **读取新信号**：`.claude/evolution/pending-signals.jsonl`（带信心评分和聚类标识）
 3. **读取统计**：`.claude/evolution/session-meta.json`
-4. **逐个对比**：`.claude/skills/{prefix}-*/SKILL.md`
-5. **生成提议**，等待用户确认
-6. 确认后写入 skill、更新 digest、清空已消化信号
+4. **信心优先排序**：⚫/🔴 (≥0.7) → 直接提议；🟠 (0.5-0.6) → 温和提议；🟡 (<0.5) → 标记 deferred
+5. **聚类合并**：相同 cluster_id 的信号归组分析，避免重复提议
+6. **逐个对比**：`.claude/skills/{prefix}-*/SKILL.md`
+7. **体积检查**：目标 skill >12KB → 先压缩再写入
+8. **生成提议**，等待用户确认
+9. 确认后写入 skill（带信心标记）、更新 digest、清空已消化信号
+10. **元进化检查**：评估进化策略本身是否需要调整，记录到 digest
 
 ## 信号类型
 
-| 类型 | 来源 | 处理方式 |
-|------|------|---------|
-| `correction` | 用户纠正（"不对"、"应该是"） | 直接提议写入对应 skill |
-| `instruction` | 显式指令（"记住"、"以后都"） | 直接提议写入对应 skill |
-| `pattern` | 重复操作模式（热点文件、常用命令） | ≥2 次出现才提议 |
-| `failure` | 命令执行失败 | 检查是否需要更新 dev skill |
+| 类型 | 来源 | 基础信心 | 处理方式 |
+|------|------|---------|---------|
+| `instruction` | 显式指令（"记住"、"以后都"） | ⚫ 0.9 | 直接提议写入对应 skill |
+| `chain` | 失败→纠正链 | 🔴 0.8 | 提议写入根因 + 修复方案 |
+| `correction` | 用户纠正（"不对"、"应该是"） | 🟠 0.5 | 提议写入对应 skill |
+| `pattern` | 重复操作模式（热点文件、常用命令） | 🟡 0.3+ | ≥2 次或信心≥0.5才提议 |
+| `failure` | 命令执行失败 | 🟡 0.4 | 检查是否需要更新 dev skill |
 
 ## 提议展示格式
 
 ```
 🧬 Skill 进化分析（基于最近 {N} 个会话的 {M} 条信号）
 
-📝 建议更新：
-1. {prefix}-{skill} v{old} → v{new}
+📊 信号分布：⚫ {n1} 条 | 🔴 {n2} 条 | 🟠 {n3} 条 | 🟡 {n4} 条（deferred）
+
+📝 建议更新（按信心排序）：
+1. {prefix}-{skill} v{old} → v{new} [{信心标记}]
    来源：[S#{session}] {信号描述}
    变更：在「{章节名}」{添加/修改/删除} {内容摘要}
    预览：
@@ -1180,8 +1284,49 @@ source: skillforge
    {将写入的具体内容}
    ---
 
-⏭️ 暂不处理（证据不足）：
-N. {描述} — 再观察 {N} 个会话
+⏭️ Deferred（🟡 低信心，继续积累）：
+N. {描述} — 信心 {score}，再观察 {N} 个会话
+
+📏 体积报告：
+- {prefix}-{skill}: {size}KB {✅/⚠️}
+
+逐条确认？全部写入？跳过？
+```
+
+**输出示例**：
+
+```
+🧬 Skill 进化分析（基于最近 3 个会话的 7 条信号）
+
+📊 信号分布：⚫ 1 条 | 🔴 2 条 | 🟠 2 条 | 🟡 2 条（deferred）
+
+📝 建议更新（按信心排序）：
+1. app-dev v1.2.0 → v1.2.1 [⚫ 0.9]
+   来源：[S#a3f2] 用户说"以后 API 调用都用 async/await，不用 callback"
+   变更：在「网络请求规范」添加 async/await 为默认模式
+   预览：
+   ---
+   ### 网络请求
+   - 使用 async/await 模式，不使用 callback
+   - 错误处理使用 do-catch
+   ---
+
+2. app-bugfix v1.0.0 → v1.0.1 [🔴 0.8]
+   来源：[S#b7d1] `pod install` 失败 → 用户纠正"先删 Podfile.lock 再装"
+   变更：在「已知 Bug 速查索引」添加 CocoaPods 安装失败修复
+   预览：
+   ---
+   | pod install | 依赖 | pod-install-fix.md | 删除 Podfile.lock 后重新安装 |
+   ---
+
+⏭️ Deferred（🟡 低信心，继续积累）：
+3. 检测到 SwiftUI Preview 频繁使用 — 信心 0.3，再观察 2 个会话
+4. 检测到 git stash 使用 2 次 — 信心 0.4，再观察 1 个会话
+
+📏 体积报告：
+- app-dev: 8.2KB ✅
+- app-bugfix: 3.1KB ✅
+- app-commit: 2.8KB ✅
 
 逐条确认？全部写入？跳过？
 ```
@@ -1190,20 +1335,27 @@ N. {描述} — 再观察 {N} 个会话
 
 | 规则 | 说明 |
 |------|------|
-| 证据阈值 | 纠正/指令：单次即提议。模式：≥2 次才提议 |
+| 信心优先 | ⚫/🔴 (≥0.7) 先处理，🟠 (0.5-0.6) 次之，🟡 (<0.5) deferred |
+| 证据阈值 | 指令/链：单次即提议。纠正：单次提议。模式：≥2 次或信心≥0.5 |
 | 不重复提议 | 对比 digest 的 Confirmed Patterns，已存在的跳过 |
 | 矛盾检测 | 新规则与现有 skill 矛盾 → 展示冲突让用户选择 |
-| 暂缓机制 | 证据不足 → 标记为"暂缓"，在 digest 中记录，继续积累 |
+| 暂缓机制 | 低信心 → 标记为 Deferred，在 digest 中记录，继续积累 |
+| 体积守护 | 写入前检查目标 skill 体积；>12KB 警告，>15KB 先压缩 |
+| 元进化 | 分析完成后评估进化策略是否需要调整 |
 
 ## 写入后操作
 
-1. 更新 skill 文件（version patch +1）
+1. 更新 skill 文件（version patch +1，规则标注信心标记）
 2. 更新 `evolution-digest.md`：
-   - Confirmed Patterns 追加已确认条目
+   - Confirmed Patterns 追加已确认条目（带信心标记）
+   - Deferred 追加低信心信号
    - Correction History 追加纠正记录
+   - Failure-Correction Chains 追加链式记录
    - Tool Usage Patterns 更新统计
    - Pending Proposals 移除已处理的
    - Evolution Log 追加版本变更
+   - Meta-Evolution 记录策略调整（如有）
+   - Size Report 更新各 skill 体积
 3. 更新 `session-meta.json`（last_digest_session、pending_signal_count）
 4. 清空 `pending-signals.jsonl` 中已消化的信号
 5. 追加到 `{prefix}-skill/evolution.log`
@@ -1241,6 +1393,12 @@ source: skillforge
 会话总数：{total_sessions}
 上次分析：Session #{last_digest_session}（{日期}）
 待处理信号：{pending_signal_count} 条
+  ⚫ {n1} | 🔴 {n2} | 🟠 {n3} | 🟡 {n4}
+
+📏 体积报告：
+  {prefix}-dev: {size}KB {✅/⚠️}
+  {prefix}-api: {size}KB {✅/⚠️}
+  ...
 
 ───────────────────────────────────
 
@@ -1394,11 +1552,15 @@ src/
 
 ### Auto-Learn — 侧重：新端点模式、错误码扩展、认证方案变更
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：API 路径变更、依赖框架 API 废弃、认证方式迭代
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：frontend
@@ -1524,11 +1686,15 @@ src/
 
 ### Auto-Learn — 侧重：新组件模式、Design Token 扩展、UI 规范演变
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：组件 API 变更、废弃样式类、路由结构变化
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：mobile
@@ -1641,11 +1807,15 @@ constants/
 
 ### Auto-Learn — 侧重：新页面模式、导航变更、设计 Token 扩展
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：导航路径变更、组件 API 废弃、设计 Token 不一致
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：db
@@ -1772,11 +1942,15 @@ src/db/
 
 ### Auto-Learn — 侧重：Schema 变更记录、新查询模式、迁移经验
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：Schema 定义与实际数据库不匹配、ORM API 变更
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：cloud
@@ -1868,11 +2042,15 @@ services:
 
 ### Auto-Learn — 侧重：新服务上线、配置变更、运维经验沉淀
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：服务 URL 变更、废弃的部署命令、过期的环境配置
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：test
@@ -1996,11 +2174,15 @@ tests/testfiles/
 
 ### Auto-Learn — 侧重：新测试模式、覆盖率变化、断言风格演变
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：测试命令变更、框架 API 废弃、测试 helper 过时
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：review
@@ -2109,11 +2291,15 @@ source: skillforge
 
 ### Auto-Learn — 侧重：新审查规则发现、误报规则剔除
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：项目规范变更导致审查规则过时
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：research
@@ -2123,8 +2309,9 @@ source: skillforge
 name: {prefix}-research
 description: >
   {项目名} 技术调研工作流。结构化技术选型评估、多源信息收集、
-  适配性分析、对比报告。
-  触发词：技术调研、技术选型、对比、评估、research、选型、方案对比。
+  源码深度分析（shallow clone 到 reference/）、适配性评估、对比报告。
+  触发词：技术调研、技术选型、对比、评估、research、选型、方案对比、
+  源码分析、参考代码、学习代码。
 version: 1.0.0
 source: skillforge
 ---
@@ -2138,11 +2325,13 @@ Step 1: 明确调研目标
     ↓
 Step 2: 多源并行信息收集
     ↓
-Step 3: 技术栈适配性评估
+Step 3: 源码获取与深度阅读（按需）
     ↓
-Step 4: 结构化报告
+Step 4: 技术栈适配性评估
     ↓
-Step 5: 行动项整理
+Step 5: 结构化报告
+    ↓
+Step 6: 行动项整理
 ```
 
 ## Step 1: 明确目标
@@ -2153,6 +2342,7 @@ Step 5: 行动项整理
 | 评估范围 | 哪些候选方案需要对比 |
 | 决策标准 | 优先考虑性能 / 开发效率 / 社区生态 / 成本 |
 | 约束条件 | 必须兼容的技术栈、团队规模、时间限制 |
+| 是否需要源码分析 | 仅文档级调研 / 需要阅读源码实现 |
 
 ## Step 2: 多源并行信息收集
 
@@ -2166,7 +2356,82 @@ Step 5: 行动项整理
 | 社区讨论 | Web 搜索 | 已知问题、迁移经验、性能基准 |
 | 项目适配 | 代码扫描 | 与当前技术栈的兼容性 |
 
-## Step 3: 适配性评估
+## Step 3: 源码获取与深度阅读
+
+> 当调研需要理解实现细节（而非仅看文档/API）时，将候选项目源码 clone 到本地深度阅读。
+
+### 3.1 获取源码
+
+```bash
+# 创建 reference 目录（首次）
+mkdir -p reference
+
+# shallow clone 到 reference/（节省空间，保留完整目录结构）
+git clone --depth 1 {repo_url} reference/{repo_name}
+
+# 如果只需要特定分支/tag
+git clone --depth 1 --branch {tag_or_branch} {repo_url} reference/{repo_name}
+```
+
+**reference/ 目录规范**：
+- 路径：`reference/{repo_name}/`（与项目根目录平级）
+- 已在 `.gitignore` 中排除（不提交到本项目仓库）
+- 用完后可 `rm -rf reference/{repo_name}` 清理，或保留供后续参考
+
+### 3.2 快速定位核心模块
+
+优先查看：
+1. `README.md` — 项目定位和架构概述
+2. 入口文件 — main / index / app
+3. 目录结构 — 理解模块划分
+4. `package.json` / `go.mod` / `Cargo.toml` — 依赖关系
+
+### 3.3 分析维度
+
+根据调研目的选择维度：
+
+| 维度 | 关注点 | 适用场景 |
+|------|--------|---------|
+| 架构设计 | 模块划分、依赖关系、设计模式 | 学习整体架构 |
+| 核心功能实现 | 关键算法、数据流、状态管理 | 理解特定功能如何实现 |
+| 工程实践 | 测试策略、CI/CD、错误处理、日志 | 学习工程规范 |
+| API 设计 | 接口风格、版本管理、文档 | 设计 API 参考 |
+| 性能优化 | 缓存策略、并发模型、数据结构选择 | 性能优化参考 |
+
+### 3.4 分析深度指引
+
+| 项目规模 | 建议深度 |
+|---------|---------|
+| < 1000 行 | 完整阅读 |
+| 1000-10000 行 | 核心模块深读 + 周边模块浏览 |
+| > 10000 行 | 目标模块精读 + 架构概览 |
+
+### 3.5 源码分析记录
+
+每个分析的项目输出简要记录（可写入调研报告的附录）：
+
+```markdown
+### 源码分析：{repo_name}
+
+- 仓库：{URL}
+- 本地路径：`reference/{repo_name}/`
+- 技术栈：{语言/框架}
+- 核心模块：{列出 2-3 个关键目录/文件}
+
+**亮点**：
+- {值得学习的设计 1}
+- {值得学习的设计 2}
+
+**局限**：
+- {不适合直接照搬的地方}
+
+**可借鉴点**：
+| 模式/设计 | 适配难度 | 建议 |
+|-----------|---------|------|
+| {具体模式} | 低/中/高 | {如何应用到本项目} |
+```
+
+## Step 4: 适配性评估
 
 ### 评估维度
 
@@ -2176,10 +2441,11 @@ Step 5: 行动项整理
 | 技术栈兼容性 | 高 | 与 {技术栈} 的集成难度 |
 | 学习成本 | 中 | API 复杂度、文档质量 |
 | 社区生态 | 中 | Stars、维护者活跃度、插件丰富度 |
+| 代码质量 | 中 | 源码阅读后的实现质量评估（Step 3 提供） |
 | 性能 | 按需 | 基准测试、官方数据 |
 | 体积 | 按需 | bundle size、依赖数量 |
 
-## Step 4: 结构化报告
+## Step 5: 结构化报告
 
 ### 报告模板
 
@@ -2206,6 +2472,11 @@ Step 5: 行动项整理
 | 兼容性 | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
 | 学习成本 | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
 | 社区生态 | ⭐⭐⭐ | ⭐⭐ | ⭐ |
+| 代码质量 | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+
+## 源码分析（如有）
+
+{Step 3.5 的源码分析记录}
 
 ## 推荐
 
@@ -2218,9 +2489,10 @@ Step 5: 行动项整理
 {已知风险、迁移成本、需要关注的 breaking changes}
 ```
 
-## Step 5: 行动项
+## Step 6: 行动项
 
 - [ ] {具体的下一步行动}
+- [ ] 清理不再需要的 `reference/` 源码（或保留供后续参考）
 - [ ] 更新 TODO.md（如有）
 
 ---
@@ -2229,13 +2501,17 @@ Step 5: 行动项整理
 
 > 本 skill 具备自我感知与进化能力。
 
-### Auto-Learn — 侧重：评估维度扩展、新的对比指标
+### Auto-Learn — 侧重：评估维度扩展、新的对比指标、源码分析模式优化
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
-### Stale Detection — 侧重：推荐方案已过时、新方案涌现
+### Stale Detection — 侧重：推荐方案已过时、reference/ 中的源码版本过旧
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：ref
@@ -2345,11 +2621,15 @@ git clone --depth 1 {repo_url} /tmp/{repo_name}
 
 ### Auto-Learn — 侧重：新的分析维度、更好的报告结构
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：参考项目已归档/重大重构
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：experiment
@@ -2470,11 +2750,15 @@ experiments/
 
 ### Auto-Learn — 侧重：新的实验模式、评估指标扩展、工具链变化
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：实验工具/API 变更、指标计算方式过时
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：admin
@@ -2606,11 +2890,15 @@ src/
 
 ### Auto-Learn — 侧重：新的 UI 模式、权限角色扩展、通用组件发现
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：路由结构变更、UI 组件库 API 变更、权限模型变化
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ### 模板：migration
@@ -2738,11 +3026,15 @@ Phase 4: 移除旧代码和 adapter
 
 ### Auto-Learn — 侧重：新的迁移模式、回滚经验、验证步骤完善
 
-{标准 Auto-Learn 表格 + 确认流程}
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
 
 ### Stale Detection — 侧重：旧系统映射关系过时、迁移工具变更
 
 {标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
 ```
 
 ---
@@ -2761,8 +3053,10 @@ ls .claude/CLAUDE.md
 # 验证 frontmatter 格式
 grep -h "^name:\|^version:" .claude/skills/{prefix}-*/SKILL.md
 
-# 验证进化协议注入
+# 验证进化协议注入（含信心等级 + 体积守护）
 grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
+grep -l "Size Guard" .claude/skills/{prefix}-*/SKILL.md
+grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
 ```
 
 ### 5.2 完成报告
@@ -2781,7 +3075,7 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 📂 .claude/skills/{prefix}-api/SKILL.md      — API 规范
 ...
 
-🧬 所有 skill 已注入「自我进化协议」
+🧬 所有 skill 已注入「自我进化协议 v3.1」（信心评分 + 体积守护 + 元进化）
 
 使用方式：
   /{prefix}-dev         查看本地开发命令
@@ -2836,5 +3130,7 @@ grep -l "自我进化协议" .claude/skills/{prefix}-*/SKILL.md
 ### 进化协议一致性
 
 - 每个生成的 skill 必须包含「自我进化协议」章节
-- 协议结构统一，但侧重点根据 skill 类型调整
-- 元技能（{prefix}-skill）额外承担进化引擎职责
+- 协议结构统一：Auto-Learn（含信心等级）+ Stale Detection + Size Guard
+- 侧重点根据 skill 类型调整（参考进化侧重表）
+- 元技能（{prefix}-skill）额外承担进化引擎 + 元进化职责
+- 信心标记 (🟡/🟠/🔴/⚫) 贯穿所有进化产出物

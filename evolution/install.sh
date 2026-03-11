@@ -63,7 +63,10 @@ cat > "$EVOLUTION_DIR/session-meta.json" << 'EOF'
 }
 EOF
 
-# 4. Initialize empty digest
+# 4. Initialize empty digest (skip if already exists)
+if [ -f "$EVOLUTION_DIR/evolution-digest.md" ]; then
+    echo "   evolution-digest.md already exists, skipping (preserving your data)"
+else
 cat > "$EVOLUTION_DIR/evolution-digest.md" << 'EOF'
 # Evolution Digest
 
@@ -76,18 +79,40 @@ cat > "$EVOLUTION_DIR/evolution-digest.md" << 'EOF'
 ## Pending Proposals
 (none yet)
 
+## Deferred (Low Confidence)
+(none yet — signals with confidence < 0.5 accumulate here until reinforced)
+
 ## Correction History
 (none yet)
+
+## Failure-Correction Chains
+(none yet — linked failure→correction sequences with root cause analysis)
 
 ## Tool Usage Patterns
 (none yet)
 
 ## Evolution Log
 (none yet)
+
+## Meta-Evolution (进化策略自身的改进记录)
+> 记录进化系统本身的调整：触发阈值、信心评分规则、信号检测模式等。
+> 每次 Evolve 分析后，评估进化过程本身是否有改进空间。
+
+(none yet)
+
+## Size Report
+> 每次 Evolve 后记录各 skill 文件的体积，超过 12KB 的标记 ⚠️。
+
+(none yet)
 EOF
+fi
 
 # 5. Merge hooks into .claude/settings.json
 echo "🔧 Configuring hooks..."
+if [ -f "$SETTINGS" ]; then
+    cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d_%H%M%S)"
+    echo "   Backed up $SETTINGS"
+fi
 python3 << 'PYEOF'
 import json
 import os
@@ -149,13 +174,20 @@ add_gitignore ".claude/evolution/pending-signals.jsonl"
 add_gitignore ".claude/evolution/session-meta.json"
 
 echo ""
-echo "✅ Evolution system installed!"
+echo "✅ Evolution system installed! (v3.1)"
 echo ""
 echo "What happens now:"
 echo "  - Hook scripts will automatically capture interaction data"
 echo "  - After each session, signals are extracted and accumulated"
 echo "  - When ≥5 signals accumulate (or ≥3 sessions pass), Claude will"
 echo "    be prompted to analyze and propose skill updates"
+echo ""
+echo "v3.1 features:"
+echo "  - 🎯 Confidence scoring (0.3-0.9) for all signals"
+echo "  - 🔗 Failure-correction chain detection"
+echo "  - 📊 Signal clustering by domain/pattern"
+echo "  - 📏 Size Guard — warns when skills exceed 12KB"
+echo "  - 🧬 Meta-evolution — the evolution system improves itself"
 echo ""
 echo "Manual commands (if you have evolve/digest skills):"
 echo "  /{prefix}-evolve   — Trigger evolution analysis now"
