@@ -41,30 +41,44 @@
 ```
 检测顺序（按优先级）：
 
+注 1：检查 package.json 时，范围为 dependencies + devDependencies + peerDependencies 合集。
+注 2：以下检测互斥，按顺序逐一判断，首个命中即停止，不继续检测后续平台。
+
 1. React Native / Expo
-   信号：package.json 含 react-native 或 expo
-   Token 文件候选：
+   主信号：package.json 中 expo 包存在（最具区分性）
+   备用信号：package.json 中 react-native 包存在
+   Token 文件候选（按优先级尝试）：
      src/lib/design.ts
      src/theme.ts
      src/styles/tokens.ts
      src/theme/colors.ts
+     constants/Colors.ts          ← Expo 官方模板默认位置
+   Fallback（以上均不存在时）：
+     glob 搜索 **/theme*.ts, **/color*.ts, **/token*.ts（深度 ≤ 3 层，取前 2 个命中文件）
 
 2. Web（React/Vue/Next.js）
-   信号：package.json 含 react / vue / next（且无 react-native）
-   Token 文件候选：
+   信号：package.json 含 react / vue / next，且 expo 和 react-native 均不存在（即第 1 条完全未命中）
+   Token 文件候选（按优先级尝试）：
      tailwind.config.ts / tailwind.config.js
      src/tokens.json
      src/styles/tokens.css
-     src/theme/*
+     src/theme/index.ts
+   Fallback（以上均不存在时）：
+     glob 搜索 **/token*.{ts,js,json,css}, **/theme*.{ts,js}（深度 ≤ 3 层，取前 2 个命中文件）
 
 3. SwiftUI
-   信号：*.xcodeproj 存在 或 Package.swift 含 SwiftUI
+   主信号：*.xcodeproj 文件存在
+   备用信号：任意 *.swift 文件中出现 `import SwiftUI`（grep 深度 ≤ 3 层，取首个命中）
    Token 文件候选：
      */DesignSystem/*.swift
      */Theme/*.swift
      */Tokens/*.swift
+   Fallback：
+     glob 搜索 **/*Color*.swift, **/*Token*.swift（深度 ≤ 3 层，取前 2 个命中文件）
 
-4. 未检测到 → 跳过，不生成 design skill
+4. 未检测到支持的平台（即 package.json 无 expo/react-native/react/vue/next，且无 *.xcodeproj，
+   且 *.swift 中无 import SwiftUI）→ 跳过，不生成 design skill。
+   注：平台命中但 token 文件全部未找到，仍生成 design skill（全部使用占位符）。
 ```
 
 ### 2. Token 扫描策略（混合模式）
@@ -79,7 +93,9 @@
    - 圆角 token（radius）
    - Light / Dark 双模式（如有）
 3. 扫描到的字段直接写入 skill
-4. 扫描不到的字段使用占位符：{{TOKEN_NAME: 说明}}
+4. 扫描不到的字段使用占位符格式：{{TOKEN_NAME: 说明}}
+   占位符仅供用户手动替换，不作为结构化标记自动识别。
+   格式锁定为 {{KEY: 说明}}，不得变更为其他形式（如 <> 或 []）。
 ```
 
 ### 3. 生成的 Design Skill 结构
@@ -88,7 +104,8 @@
 
 ```
 ## 实现顺序规范
-  → 先查哪些 skill，再查 design（与项目其他 skill 的依赖关系）
+  → 先查哪些 skill，再查 design（内容由生成时 Phase 2 的 skill 列表自动填入；
+    若生成时尚无其他 skill，则写"暂无依赖，直接参考 design skill"）
 
 ## 调用方式
   → Figma URL / 截图 / 文字描述 三路处理规则
@@ -159,6 +176,6 @@
 ## 成功标准
 
 1. `claude-skill-evo` 在 Splaz（RN）项目中运行，能自动扫描 `design.ts` 并生成含实际 token 的 design skill
-2. 在无 token 文件的 Web 项目中运行，能生成含占位符的 design skill 框架
-3. 在非 UI 项目（如纯 CLI 工具）中运行，不生成 design skill，流程正常
+2. 在有 react 依赖但无 token 文件的 Web 项目中运行（平台命中，token 扫描无结果），能生成含占位符的 design skill 框架
+3. 在非 UI 项目（如纯 CLI 工具，package.json 无 react/vue/next/expo/react-native）中运行，不生成 design skill，流程正常
 4. 主 SKILL.md 体积 ≤ 15KB
