@@ -120,6 +120,12 @@ Which ones? (1,2 / all / skip)
 ```
 .claude/
 ├── CLAUDE.md                          # Project-level Claude instructions
+├── knowledge/                         # Project knowledge base
+│   ├── decisions/                     # Architecture decisions
+│   ├── research/                      # Tech research notes
+│   ├── pitfalls/                      # Known pitfalls & lessons learned
+│   ├── conventions/                   # Project conventions
+│   └── references/                    # External references
 └── skills/
     ├── {prefix}-skill/SKILL.md        # Meta-skill + evolution engine
     ├── {prefix}-dev/SKILL.md          # Local dev commands & environment

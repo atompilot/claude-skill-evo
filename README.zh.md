@@ -120,6 +120,12 @@ Which ones? (1,2 / all / skip)
 ```
 .claude/
 ├── CLAUDE.md                          # 项目级 Claude 指令
+├── knowledge/                         # 项目知识库
+│   ├── decisions/                     # 架构决策
+│   ├── research/                      # 技术调研笔记
+│   ├── pitfalls/                      # 已知坑点与教训
+│   ├── conventions/                   # 项目约定
+│   └── references/                    # 外部参考资料
 └── skills/
     ├── {prefix}-skill/SKILL.md        # 元 skill + 进化引擎
     ├── {prefix}-dev/SKILL.md          # 本地开发命令与环境
