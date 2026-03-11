@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-SkillForge Evolution System — Layer 2: Session Digest
+Claude Skill Evo — Evolution System Layer 2: Session Digest
 Runs at SessionEnd. Extracts evolution signals from raw captured data.
-https://github.com/atompilot/skillforge
+https://github.com/atompilot/claude-skill-evo
 
 v3.1 — Enhanced with:
   - Confidence scoring (0.3-0.9) for all signals

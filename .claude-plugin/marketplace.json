@@ -1,5 +1,5 @@
 {
-  "name": "skillforge",
+  "name": "claude-skill-evo",
   "owner": {
     "name": "Atompilot",
     "url": "https://github.com/atompilot"
@@ -10,10 +10,10 @@
   },
   "plugins": [
     {
-      "name": "skillforge",
-      "description": "Scans your project, asks smart questions, and forges a complete skill system tailored to your tech stack — with built-in self-evolution. Every skill learns from corrections, detects staleness, and proposes updates. Run /skillforge once to initialize, run it again to improve. Supports 16 skill types across 7 languages.",
+      "name": "claude-skill-evo",
+      "description": "Scans your project, asks smart questions, and forges a complete skill system tailored to your tech stack — with built-in self-evolution. Every skill learns from corrections, detects staleness, and proposes updates. Run /skill-evo once to initialize, run it again to improve. Supports 16 skill types across 7 languages.",
       "source": "./",
-      "skills": ["./skills/skillforge"]
+      "skills": ["./skills/claude-skill-evo"]
     }
   ]
 }

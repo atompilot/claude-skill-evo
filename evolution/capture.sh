@@ -1,7 +1,7 @@
 #!/bin/bash
-# SkillForge Evolution System — Unified Hook Entry Point
+# Claude Skill Evo — Evolution System Unified Hook Entry Point
 # All hook events route through this script. Runs async, zero-latency.
-# https://github.com/atompilot/skillforge
+# https://github.com/atompilot/claude-skill-evo
 
 set -euo pipefail
 

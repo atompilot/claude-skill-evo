@@ -1,10 +1,10 @@
 #!/bin/bash
-# SkillForge Evolution System — Standalone Installer
+# Claude Skill Evo — Evolution System Standalone Installer
 # For projects that already have skills but want cross-session evolution.
-# https://github.com/atompilot/skillforge
+# https://github.com/atompilot/claude-skill-evo
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/atompilot/skillforge/main/evolution/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/atompilot/claude-skill-evo/main/evolution/install.sh | bash
 #   # or
 #   bash /path/to/install.sh
 
@@ -13,9 +13,9 @@ set -euo pipefail
 EVOLUTION_DIR=".claude/evolution"
 HOOKS_DIR="$EVOLUTION_DIR/hooks"
 SETTINGS=".claude/settings.json"
-BASE_URL="https://raw.githubusercontent.com/atompilot/skillforge/main/evolution"
+BASE_URL="https://raw.githubusercontent.com/atompilot/claude-skill-evo/main/evolution"
 
-echo "🧬 SkillForge Evolution System — Installing..."
+echo "🧬 Claude Skill Evo — Evolution System Installing..."
 
 # Check prerequisites
 if ! command -v jq &>/dev/null; then
@@ -33,7 +33,7 @@ fi
 # Check we're in a project with .claude/
 if [ ! -d ".claude" ]; then
     echo "❌ No .claude/ directory found. Run this from your project root."
-    echo "   If you haven't set up skills yet, use /skillforge first."
+    echo "   If you haven't set up skills yet, use /skill-evo first."
     exit 1
 fi
 
@@ -193,4 +193,4 @@ echo "Manual commands (if you have evolve/digest skills):"
 echo "  /{prefix}-evolve   — Trigger evolution analysis now"
 echo "  /{prefix}-digest   — View evolution status"
 echo ""
-echo "No evolve/digest skills? Run /skillforge to generate them."
+echo "No evolve/digest skills? Run /skill-evo to generate them."

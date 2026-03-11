@@ -1,19 +1,19 @@
 ---
-name: skillforge
+name: skill-evo
 description: >
   交互式锻造项目专属 Claude Code skills。每次执行都会扫描项目现状，
   首次运行初始化完整 skill 体系，后续运行优化完善现有 skills。
   所有生成的 skill 内置自我感知与进化协议。
   触发词：初始化 skills、init skills、创建 skills、项目初始化、setup skills、
-  生成 CLAUDE.md、skillforge、锻造 skill、优化 skill、完善 skill。
+  生成 CLAUDE.md、skill-evo、锻造 skill、优化 skill、完善 skill、进化 skill。
 version: 3.0.0
-source: manual
+source: claude-skill-evo
 license: MIT
 author: Atompilot
 keywords: ["init", "setup", "skills", "project", "scaffold", "CLAUDE.md", "evolution", "self-aware"]
 ---
 
-# SkillForge — 锻造会进化的项目 Skill
+# Claude Skill Evo — 锻造会进化的项目 Skill
 
 > 每次执行都会扫描项目现状：首次初始化，后续持续优化。可反复执行，越用越好。
 
@@ -22,9 +22,9 @@ keywords: ["init", "setup", "skills", "project", "scaffold", "CLAUDE.md", "evolu
 ## 触发方式
 
 ```
-/skillforge                              # 扫描项目，初始化或优化 skills
-/skillforge 补充 API 规范                 # 带提示词，重点关注指定方向
-/skillforge 根据 README 完善 dev skill    # 指定参考内容和优化目标
+/skill-evo                              # 扫描项目，初始化或优化 skills
+/skill-evo 补充 API 规范                 # 带提示词，重点关注指定方向
+/skill-evo 根据 README 完善 dev skill    # 指定参考内容和优化目标
 ```
 
 **ARGUMENTS**: $ARGUMENTS
@@ -249,7 +249,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
    [PostgreSQL / MySQL / MongoDB / SQLite / 无 / 计划用但还没决定]
 
 5. **部署方式**：
-   💡 如果还没确定也没关系，选"未定"即可，后续再执行 /skillforge 补充。
+   💡 如果还没确定也没关系，选"未定"即可，后续再执行 /skill-evo 补充。
    [Vercel / AWS / Fly.io / 自建服务器 / Docker / 未定]
 
 6. **测试框架**（如有）：
@@ -276,7 +276,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
    g) 🧫 实验管理 — AI/ML 实验的设计、执行、记录（AI 项目适用）
    h) 其他 — 请描述，我来判断是否适合做成 skill
 
-   不确定的话也没关系，先不选——后面再执行 /skillforge 时可以补充，
+   不确定的话也没关系，先不选——后面再执行 /skill-evo 时可以补充，
    或者 skill 的进化协议也会在使用中自动发现并提议。
 ```
 
@@ -287,7 +287,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
 | **给出选项而非开放提问** | 用户面对选项比面对空白更容易回答 |
 | **每个选项附带一句话解释** | 帮用户理解选了之后会怎样 |
 | **给出推荐和理由** | "不确定"时有明确的默认推荐 |
-| **允许"还没想好"** | 明确告诉用户可以下次 /skillforge 时补充 |
+| **允许"还没想好"** | 明确告诉用户可以下次 /skill-evo 时补充 |
 | **用具体例子引导** | 比起抽象描述，例子更能帮用户对号入座 |
 | **不追问** | 用户回答"不确定"或跳过时，用合理默认值，不要反复追问 |
 
@@ -423,7 +423,7 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
    b) Session/Cookie（传统服务端渲染）
    c) OAuth 第三方登录（Google/GitHub 等）
    d) API Key（面向开发者的 API）
-   e) 还没想好 — 💡 我先留个占位，下次 /skillforge 时再补充
+   e) 还没想好 — 💡 我先留个占位，下次 /skill-evo 时再补充
 ```
 
 #### `{prefix}-db` 要问的：
@@ -498,13 +498,34 @@ find . -maxdepth 3 -type d | grep -v node_modules | grep -v .git | grep -v __pyc
    c) 不确定 — 💡 建议选 (b)，多看一层关联很有价值
 ```
 
+#### `{prefix}-product` 要问的：
+
+```
+📦 关于产品设计文档：
+
+1. 用一句话描述产品的核心定位？
+   💡 举例：
+   - "面向北美市场的社交+游戏化应用"
+   - "B2B SaaS 项目管理工具"
+   - "个人健康追踪 iOS 应用"
+
+2. 目前已有哪些功能模块？（列举主要的即可）
+   💡 比如：用户认证、内容发布、消息系统、支付……
+   如果还在规划阶段，告诉我计划中的模块也行。
+
+3. 产品文档的维护者？
+   a) 我自己 — 产品和开发都是我
+   b) 有专门的产品经理 — skill 会侧重冲突处理和协作规范
+   c) 团队协作 — 多人共同维护
+```
+
 #### 其他 skill 的提问同理：给选项、给例子、给推荐、允许跳过。
 
 **核心原则**：
 - **尽量从扫描结果中提取答案**，展示给用户确认，而不是让用户从零填写
 - **用户回答"不确定"或"没有"时**，使用合理的默认值，不要追问
 - **用户回答模糊时**（如"差不多"），根据上下文选最接近的选项，展示选择结果让用户确认
-- **用户跳过时**，明确告知"已用默认值，下次 /skillforge 可以补充"
+- **用户跳过时**，明确告知"已用默认值，下次 /skill-evo 可以补充"
 
 ### 3.2 批量确认
 
@@ -659,7 +680,7 @@ description: >
   {一句话描述}。
   触发词：{逗号分隔的触发关键词}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 ```
 
@@ -961,7 +982,7 @@ description: >
   环境变量配置、常用开发命令。
   触发词：本地开发、启动服务、环境配置、环境变量、.env、开发命令。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 本地开发规范
@@ -1012,7 +1033,7 @@ description: >
   {项目名} 代码提交规范。Conventional Commits 格式，{中文/英文}描述。
   触发词：提交代码、git commit、commit、提交、commit message。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 代码提交规范
@@ -1059,7 +1080,7 @@ description: >
   {项目名} 深度 Bug 修复工作流。彻底修复，不打补丁，沉淀经验记录。
   触发词：bug、报错、错误、修复、fix、崩溃、{框架特有错误关键词}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 深度 Bug 修复
@@ -1132,7 +1153,7 @@ description: >
   跨 skill 一致性检查，驱动整个 skill 体系的进化。
   触发词：skill 管理、查看 skill、skill 列表、新建 skill、更新 skill、skill 进化。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} Skill 管理元技能
@@ -1238,7 +1259,7 @@ description: >
   生成进化提议并等待确认。
   触发词：进化、evolve、优化 skill、skill 进化、skill 更新、进化分析。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # Skill 进化分析
@@ -1371,7 +1392,7 @@ description: >
   工具使用热点、进化日志。只读操作，不做任何修改。
   触发词：digest、进化摘要、进化记录、skill 状态、进化历史、进化报告。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # Skill 进化摘要
@@ -1432,7 +1453,7 @@ description: >
   分页模式、文件上传、后台任务。
   触发词：API、接口、路由、endpoint、错误处理、认证、分页、{框架名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} API 开发规范
@@ -1573,7 +1594,7 @@ description: >
   路由导航、UI 模式、新页面检查清单。
   触发词：前端、组件、页面、UI、样式、状态管理、路由、{框架名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 前端开发规范
@@ -1707,7 +1728,7 @@ description: >
   设计系统 Token、认证状态、文件处理、新页面检查清单。
   触发词：移动端、App、iOS、Android、页面、导航、{框架名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 移动端开发规范
@@ -1828,7 +1849,7 @@ description: >
   索引规范、迁移流程、查询优化。
   触发词：数据库、表、Schema、迁移、migration、SQL、ORM、{ORM名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 数据库规范
@@ -1963,7 +1984,7 @@ description: >
   监控告警、CI/CD、基础设施检查。
   触发词：部署、云服务、Docker、CI/CD、环境、监控、生产环境、{云平台名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 云服务与部署规范
@@ -2063,7 +2084,7 @@ description: >
   Mock 策略、集成测试、覆盖率要求。
   触发词：测试、test、单元测试、集成测试、覆盖率、mock、{测试框架名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 测试规范
@@ -2195,7 +2216,7 @@ description: >
   迭代修复循环、审查报告。
   触发词：代码审查、review、code review、CR、审查、检查代码。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 代码审查工作流
@@ -2313,7 +2334,7 @@ description: >
   触发词：技术调研、技术选型、对比、评估、research、选型、方案对比、
   源码分析、参考代码、学习代码。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 技术调研工作流
@@ -2524,7 +2545,7 @@ description: >
   架构设计、最佳实践，输出结构化分析报告。
   触发词：参考代码、源码分析、开源项目、学习代码、ref、分析代码。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 参考源码分析工作流
@@ -2642,7 +2663,7 @@ description: >
   对照实验、参数追踪、结论归档。
   触发词：实验、experiment、测试模型、对比实验、A/B测试、调参、{领域关键词}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 实验管理规范
@@ -2771,7 +2792,7 @@ description: >
   通用 UI 模式、数据表格、表单、{框架名}规范。
   触发词：后台、管理后台、admin、管理端、运营后台、{框架名}。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 后台管理开发规范
@@ -2911,7 +2932,7 @@ description: >
   渐进式迁移策略、回滚方案、验证检查清单。
   触发词：迁移、migration、架构变更、重构、升级、从...迁移到...。
 version: 1.0.0
-source: skillforge
+source: claude-skill-evo
 ---
 
 # {项目名} 迁移工作流
@@ -3037,6 +3058,247 @@ Phase 4: 移除旧代码和 adapter
 {标准 Size Guard 压缩策略}
 ```
 
+### 模板：product
+
+```markdown
+---
+name: {prefix}-product
+description: >
+  {项目名} 产品设计文档索引。功能模块目录、设计规范、冲突处理、模糊意图处理。
+  触发词：产品设计、功能设计、用户流程、业务逻辑、怎么做、该怎么设计。
+version: 1.0.0
+source: claude-skill-evo
+---
+
+# {项目名} 产品设计 Skill
+
+> **子文档索引**
+> - 功能模块：`.claude/skills/{prefix}-product/features/`
+
+---
+
+## 文档范围规范（必须遵守）
+
+**{prefix}-product 是产品设计文档，不是技术文档。**
+
+### 应该包含的内容
+
+| 类型 | 示例 |
+|------|------|
+| 功能描述 | 用户可以执行哪些操作 |
+| 业务规则 | 各功能的约束和限制条件 |
+| 用户流程 | 操作的步骤顺序 |
+| 交互逻辑 | 操作后的反馈和状态变化 |
+| 可见性/权限规则 | 不同角色/状态下的功能可见性 |
+| 数据的**语义描述** | 实体包含什么信息（不涉及数据库设计） |
+
+### 禁止出现的内容
+
+| 类型 | 示例 |
+|------|------|
+| ❌ 数据库表结构 | 字段列表、索引定义、外键关系 |
+| ❌ 代码片段 | 类型定义、SQL、API 请求格式 |
+| ❌ 技术实现细节 | 缓存策略、队列实现、第三方 SDK 用法 |
+| ❌ 字段类型和约束 | `UUID`、`text`、`int`、`NOT NULL` |
+
+**判断方法**：这条内容是"产品要做什么"，还是"开发者怎么实现"？后者不属于本 skill。
+
+---
+
+## Skill 维护规则（重要）
+
+**每次产品功能发生变更时，必须同步更新本 skill：**
+
+| 变更类型 | 需要更新的文件 |
+|---------|-------------|
+| 新增功能模块 | 在 `features/` 下新建对应文件，并在本文件目录中登记 |
+| 修改现有功能逻辑 | 直接更新对应的 `features/<module>.md` |
+| 新增/修改用户流程 | 在对应 `features/<module>.md` 中添加「完整流程」章节 |
+| 调整核心产品定位 | 更新本文件「产品概述」部分 |
+| 版本迭代 | 更新本文件 `version` 字段 |
+
+**触发更新的时机**：
+- 用户说"我们要加一个功能……"→ 设计完成后写入对应 features 文件
+- 用户说"这个功能改成……"→ 修改对应 features 文件
+- 代码与文档冲突，且用户明确指定方向 → 按指定执行
+- 代码与文档冲突，用户未明确指定 → **先向用户确认**
+
+---
+
+## 产品概述
+
+| 维度 | 定义 |
+|------|------|
+| 产品定位 | {产品定位} |
+| 目标用户 | {目标用户} |
+| 差异化 | {差异化} |
+| 平台 | {平台} |
+
+---
+
+## 功能模块目录
+
+| 模块 | 文件 | 状态 | 说明 |
+|------|------|------|------|
+| {模块名} | `features/{module}.md` | 📝 规划中 | {一句话说明} |
+
+> 随产品发展逐步增加。每新增一个功能模块，在此表中登记并在 `features/` 下创建对应文件。
+
+---
+
+## 通用产品原则
+
+### 交互设计原则
+
+{根据产品定位填写，以下为示例：}
+
+1. **低门槛参与**：核心功能 3 步以内可完成
+2. **即时反馈**：操作后必须有视觉反馈
+3. **一致性**：相同类型的操作使用相同的交互模式
+
+### 数据与隐私
+
+- 用户可控：用户对自己的内容有完整控制权
+- 最小采集：只采集业务必需的数据
+
+---
+
+## 代码与设计文档冲突处理（必须遵守）
+
+在检查代码时，若发现**现有代码实现与产品设计文档存在冲突**：
+
+### 判断流程
+
+```
+发现代码与文档冲突
+        ↓
+用户是否在本次对话中明确指定了方向？
+        ↓
+   是 → 按用户指定执行（修改代码 or 更新文档）
+   否 → 停下来，向用户确认
+```
+
+### 向用户确认的格式
+
+```
+发现代码与设计文档存在冲突，需要确认以哪个为准：
+
+**冲突描述**：
+- 设计文档（features/xxx.md）：[描述文档中的设计]
+- 现有代码（path/to/file:行号）：[描述代码中的实现]
+
+请确认：
+A. 以设计文档为准 → 修改代码
+B. 以代码为准 → 更新设计文档
+C. 两者都需调整 → 说明新的期望行为
+```
+
+### 明确指定的识别规则
+
+| 用户说的 | 视为 |
+|---------|------|
+| "按文档实现"、"文档说的是对的" | 以文档为准，修改代码 |
+| "代码没问题"、"文档写错了" | 以代码为准，更新文档 |
+| "帮我把代码改成……" | 修改代码（同时更新文档） |
+| "文档里改成……" | 更新文档 |
+
+### 禁止行为
+
+- ❌ 发现冲突后默默选一个方向执行，不告知用户
+- ❌ 仅凭"代码已实现"就断定代码优先
+- ❌ 仅凭"文档更权威"就断定文档优先
+
+---
+
+## 模糊意图处理规范（必须遵守）
+
+产品设计中的模糊和歧义是常态。**不得自行假设、脑补或凭直觉决定**。
+
+### 何时必须提问
+
+| 情况 | 示例 | 必须确认的问题 |
+|------|------|--------------|
+| 功能边界不清 | "加一个分享功能" | 分享到哪里？分享什么内容？ |
+| 业务规则缺失 | "要有时间限制" | 限制多长时间？到期怎么处理？ |
+| 权限逻辑不明 | "管理员可以管理" | 管理包含哪些操作？ |
+| 状态/流程有分叉 | "用户取消操作" | 取消后如何恢复？数据如何处理？ |
+| 与已有设计有冲突 | 新需求与已记录设计矛盾 | 指出冲突，确认以哪个为准 |
+
+### 提问原则
+
+1. **集中提问**：所有不清楚的点一次性列出
+2. **给出选项**：提供 2-3 个候选方案，而非开放性问题
+3. **标注影响**：说明不同选择会带来什么后果
+4. **区分优先级**：先问核心逻辑，次要细节可暂时搁置
+
+### 禁止行为
+
+- ❌ 凭经验/直觉假设产品逻辑
+- ❌ 用"通常来说"、"一般会"等模糊措辞蒙混过关
+- ❌ 把多个不确定点拆成多轮对话逐个问
+
+---
+
+## 产品设计问题检查规范（必须遵守）
+
+当用户要求检查产品设计是否有问题时：
+
+### 问题定位要求
+
+每个问题**必须**标注原文所在位置：
+
+```
+**问题描述**
+位置：`features/xxx.md` > 章节名 > 具体条目
+原文：「……」
+```
+
+### TODO / 待补充内容的处理
+
+**除非用户明确要求检查 TODO**，否则：
+- 标记为「待填写」「待补充」的内容**不作为问题点**列出
+- 仅检查**已明确描述的内容**是否存在逻辑漏洞、自相矛盾
+
+### 检查范围
+
+| 检查点 | 说明 |
+|--------|------|
+| 内容自相矛盾 | 同一文件或跨文件的两处描述互相冲突 |
+| 逻辑漏洞 | 某个操作/流程缺少必要的边界情况 |
+| 描述不完整 | 某个已描述的功能缺少关键规则 |
+| 跨文档不一致 | A 文件引用 B 文件，但两者描述对不上 |
+
+---
+
+## 如何使用本 Skill
+
+1. **查找功能设计**：先看「功能模块目录」，找到对应 `features/xxx.md` 阅读
+2. **新功能讨论**：参考产品原则，列出不确定点提问确认，设计完成后写入对应子文件
+3. **子文件不存在**：说明该功能尚未设计，通过提问明确方案后再创建文件
+4. **跨模块用户流程**：在主要 feature 文档里添加「完整流程」章节
+
+---
+
+## 自我进化协议
+
+> 本 skill 具备自我感知与进化能力。
+
+### Auto-Learn — 侧重：功能模块增删、设计原则演变、冲突处理经验
+
+{标准 Auto-Learn 表格（含信心等级）+ 确认流程}
+
+### Stale Detection — 侧重：功能模块目录与实际 features/ 文件不一致、产品定位变化
+
+{标准 Stale Detection 表格 + 处理流程}
+
+### Size Guard — ≤ 15KB 守护
+
+{标准 Size Guard 压缩策略}
+
+> **注意**：本 skill 主文件保持索引角色，功能细节分散到 `features/` 子文件中。
+> 当主文件接近体积上限时，优先将内容拆分到子文件，而非删减。
+```
+
 ---
 
 ## Phase 5: 验证 & 完成
@@ -3083,7 +3345,7 @@ grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
   /{prefix}-bugfix      修复 bug
   /{prefix}-skill       管理/进化所有 skills
 
-💡 随时可以再次执行 /skillforge 来优化和完善 skills。
+💡 随时可以再次执行 /skill-evo 来优化和完善 skills。
 ```
 
 #### 优化更新
@@ -3096,7 +3358,7 @@ grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
 🔄 更新 2 个 skill：{prefix}-dev、{prefix}-bugfix
 📝 version 变更：{prefix}-dev v1.0.0 → v1.0.1
 
-💡 随时可以再次执行 /skillforge 继续优化。
+💡 随时可以再次执行 /skill-evo 继续优化。
 ```
 
 ---
@@ -3112,7 +3374,7 @@ grep -l "信心" .claude/skills/{prefix}-*/SKILL.md
 ### 保持精简
 
 - 初始化生成的 skill 应为**起步版本**（v1.0.0）
-- 内容宁少勿多，通过多次 /skillforge 和进化协议逐步丰富
+- 内容宁少勿多，通过多次 /skill-evo 和进化协议逐步丰富
 - 每个 skill 控制在 60-180 行，避免信息过载
 
 ### 文件安全
