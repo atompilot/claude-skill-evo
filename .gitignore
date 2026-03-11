@@ -3,3 +3,5 @@ node_modules/
 .claude/
 __pycache__/
 *.pyc
+.trash/
+.ruff_cache/

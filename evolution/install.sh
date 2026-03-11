@@ -42,14 +42,22 @@ echo "📁 Creating directory structure..."
 mkdir -p "$EVOLUTION_DIR/raw"
 mkdir -p "$HOOKS_DIR"
 
-# 2. Download hook scripts
-echo "📥 Downloading hook scripts..."
-if command -v curl &>/dev/null; then
-    curl -fsSL "$BASE_URL/capture.sh" > "$HOOKS_DIR/capture.sh"
-    curl -fsSL "$BASE_URL/digest.py" > "$HOOKS_DIR/digest.py"
+# 2. Copy or download hook scripts
+# Prefer local files (when running from plugin directory) over downloading
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/capture.sh" ] && [ -f "$SCRIPT_DIR/digest.py" ]; then
+    echo "📁 Copying hook scripts from local plugin..."
+    cp "$SCRIPT_DIR/capture.sh" "$HOOKS_DIR/capture.sh"
+    cp "$SCRIPT_DIR/digest.py" "$HOOKS_DIR/digest.py"
 else
-    wget -q "$BASE_URL/capture.sh" -O "$HOOKS_DIR/capture.sh"
-    wget -q "$BASE_URL/digest.py" -O "$HOOKS_DIR/digest.py"
+    echo "📥 Downloading hook scripts..."
+    if command -v curl &>/dev/null; then
+        curl -fsSL "$BASE_URL/capture.sh" > "$HOOKS_DIR/capture.sh"
+        curl -fsSL "$BASE_URL/digest.py" > "$HOOKS_DIR/digest.py"
+    else
+        wget -q "$BASE_URL/capture.sh" -O "$HOOKS_DIR/capture.sh"
+        wget -q "$BASE_URL/digest.py" -O "$HOOKS_DIR/digest.py"
+    fi
 fi
 chmod +x "$HOOKS_DIR/capture.sh"
 

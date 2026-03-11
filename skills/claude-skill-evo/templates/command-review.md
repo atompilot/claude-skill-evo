@@ -47,10 +47,13 @@ argument-hint: 可选：@文件路径（审查指定文件）
 
 ### Agent 4：项目规范
 
-{根据项目已有 skill 生成具体检查项}
+<!-- 生成指南：读取 .claude/skills/*/SKILL.md 的 description 字段，
+     提取项目特定的规范和约定作为检查项。
+     同时读取项目 CLAUDE.md 中的代码规范章节。 -->
 
 - 是否遵循 {prefix}-commit 中的提交规范
 - 是否遵循项目 CLAUDE.md 中定义的规范
+{从已有 skill 中提取的项目特定检查项}
 
 ### Agent 5：代码质量与复用
 

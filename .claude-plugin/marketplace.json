@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "One command to forge self-evolving Claude Code skills. They learn from your corrections, detect when they go stale, and propose their own updates.",
-    "version": "2.1.0"
+    "version": "5.1.0"
   },
   "plugins": [
     {

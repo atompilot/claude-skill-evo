@@ -52,7 +52,8 @@ claude plugin install claude-skill-evo@claude-skill-evo
 # 使用（随时可跑）
 /skill-evo                              # 完整扫描 → 初始化或优化
 /skill-evo add API conventions          # 聚焦某个特定领域
-/skill-evo update dev based on README   # 使用特定参考优化 skill
+/skill-evo review                       # 审查所有 skill 质量
+/skill-evo review {prefix}-debug        # 审查指定 skill
 ```
 
 ## 工作原理
@@ -104,13 +105,17 @@ Confirm and fill in what I couldn't detect...
 📊 Skill System Health Report
 
 Existing skills:
-  ✅ myapp-dev      v1.0.2  — healthy
+  ✅ myapp-skill    v1.0.3  — healthy
   ⚠️ myapp-debug    v1.0.1  — 1 stale reference found
-  ✅ myapp-review   v1.0.0  — healthy
+  ✅ myapp-digest   v1.0.0  — healthy
+
+Content health check:
+  ⚠️ myapp-debug references src/utils/ but directory is now src/lib/
+  ✅ All skill terminology consistent with CLAUDE.md
 
 Improvement opportunities:
   1. 🆕 Detected Vitest but no test skill → create one?
-  2. 🔄 README has new commands not in dev skill → update?
+  2. 🔄 myapp-debug has stale path reference → update?
 
 Which ones? (1,2 / all / skip)
 ```
@@ -120,25 +125,38 @@ Which ones? (1,2 / all / skip)
 ```
 .claude/
 ├── CLAUDE.md                          # 项目级 Claude 指令
+├── commands/
+│   ├── {prefix}-commit.md             # Git 提交规范
+│   ├── {prefix}-review.md             # 多 Agent 代码审查
+│   └── {prefix}-research.md           # 技术调研工作流
 ├── knowledge/                         # 项目知识库
 │   ├── decisions/                     # 架构决策
 │   ├── research/                      # 技术调研笔记
 │   ├── pitfalls/                      # 已知坑点与教训
 │   ├── conventions/                   # 项目约定
 │   └── references/                    # 外部参考资料
-└── skills/
-    ├── {prefix}-skill/SKILL.md        # 元 skill + 进化引擎
-    ├── {prefix}-dev/SKILL.md          # 本地开发命令与环境
-    ├── {prefix}-commit/SKILL.md       # Git 提交规范
-    ├── {prefix}-debug/SKILL.md        # Bug 修复工作流 + 经验库
-    ├── {prefix}-digest/SKILL.md       # 知识沉淀
-    ├── {prefix}-review/SKILL.md       # 多 Agent 代码审查
-    └── {prefix}-research/SKILL.md     # 技术调研 + 来源分析
+├── skills/
+│   ├── {prefix}-skill/SKILL.md        # 元 skill + 进化引擎
+│   ├── {prefix}-debug/SKILL.md        # Bug 修复工作流 + 经验库
+│   ├── {prefix}-digest/SKILL.md       # 知识沉淀
+│   └── {prefix}-todo/SKILL.md         # 项目待办管理
+└── evolution/                         # 跨会话进化系统
+    ├── hooks/capture.sh               # 第 1 层：事件捕获
+    ├── hooks/digest.py                # 第 2 层：信号提取
+    ├── evolution-digest.md            # 第 3 层：分析检查点
+    └── session-meta.json              # 会话计数器 + 触发状态
 ```
 
 `{prefix}` 从你的项目自动检测（package.json、go.mod、Cargo.toml 等）——你只需确认。
 
-默认生成全部 7 个 skill。元 skill（`{prefix}-skill`）内置进化引擎——运行 `/{prefix}-skill evolve` 即可触发完整 skill 健康扫描。
+Skills 和 commands 根据项目特性裁剪——不是每个模板都适用于每个项目。元 skill（`{prefix}-skill`）内置进化引擎——运行 `/{prefix}-skill evolve` 即可触发完整 skill 健康扫描。
+
+**审查模式**通过 4 个并行 Agent 审查现有 skill 质量（结构、内容、一致性、安全）：
+
+```bash
+/skill-evo review                  # 审查所有 skill
+/skill-evo review {prefix}-debug   # 审查指定 skill
+```
 
 ## 自我进化协议
 
