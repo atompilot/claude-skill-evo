@@ -29,7 +29,7 @@ source: claude-skill-evo
 
 ## 内容类型与模板
 
-所有文件统一命名：`YYYY-MM-DD-{topic}.md`
+所有文件统一命名：`YYYYMMDD-{topic}.md`
 
 ### decisions/ — 技术决策
 
@@ -122,19 +122,19 @@ source: claude-skill-evo
 # {项目名} 知识库索引
 
 ## 技术决策
-- YYYY-MM-DD [{标题}](decisions/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+- YYYY-MM-DD [{标题}](decisions/YYYYMMDD-{topic}.md) — {一句话摘要}
 
 ## 调研结论
-- YYYY-MM-DD [{标题}](research/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+- YYYY-MM-DD [{标题}](research/YYYYMMDD-{topic}.md) — {一句话摘要}
 
 ## 踩坑记录
-- YYYY-MM-DD [{标题}](pitfalls/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+- YYYY-MM-DD [{标题}](pitfalls/YYYYMMDD-{topic}.md) — {一句话摘要}
 
 ## 隐式规范
-- YYYY-MM-DD [{标题}](conventions/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+- YYYY-MM-DD [{标题}](conventions/YYYYMMDD-{topic}.md) — {一句话摘要}
 
 ## 外部参考
-- YYYY-MM-DD [{标题}](references/YYYY-MM-DD-{topic}.md) — {一句话摘要}
+- YYYY-MM-DD [{标题}](references/YYYYMMDD-{topic}.md) — {一句话摘要}
 ```
 
 ## 操作流程
@@ -142,7 +142,7 @@ source: claude-skill-evo
 ### 写入知识
 
 1. 判断内容类型（决策/调研/踩坑/惯例/参考）
-2. 用对应模板创建 `.claude/knowledge/{type}/YYYY-MM-DD-{topic}.md`
+2. 用对应模板创建 `.claude/knowledge/{type}/YYYYMMDD-{topic}.md`
 3. 更新 `.claude/knowledge/index.md` 对应章节
 
 ### 查看知识
