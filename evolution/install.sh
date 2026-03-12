@@ -11,9 +11,13 @@
 set -euo pipefail
 
 EVOLUTION_DIR=".claude/evolution"
-HOOKS_DIR="$EVOLUTION_DIR/hooks"
 SETTINGS=".claude/settings.json"
 BASE_URL="https://raw.githubusercontent.com/atompilot/claude-skill-evo/main/evolution"
+
+# Global hook script location — path-independent, works for all users/machines
+GLOBAL_HOOKS_DIR="$HOME/.claude/evolution/hooks"
+GLOBAL_CAPTURE="$GLOBAL_HOOKS_DIR/capture.sh"
+GLOBAL_DIGEST="$GLOBAL_HOOKS_DIR/digest.py"
 
 echo "🧬 Claude Skill Evo — Evolution System Installing..."
 
@@ -37,29 +41,32 @@ if [ ! -d ".claude" ]; then
     exit 1
 fi
 
-# 1. Create directory structure
-echo "📁 Creating directory structure..."
-mkdir -p "$EVOLUTION_DIR/raw"
-mkdir -p "$HOOKS_DIR"
+# 1. Install hook scripts to global location (~/.claude/evolution/hooks/)
+#    Using a global path avoids hardcoding per-project absolute paths,
+#    making this portable across all users and machines.
+echo "📁 Installing hook scripts to $GLOBAL_HOOKS_DIR ..."
+mkdir -p "$GLOBAL_HOOKS_DIR"
 
-# 2. Copy or download hook scripts
-# Prefer local files (when running from plugin directory) over downloading
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/capture.sh" ] && [ -f "$SCRIPT_DIR/digest.py" ]; then
-    echo "📁 Copying hook scripts from local plugin..."
-    cp "$SCRIPT_DIR/capture.sh" "$HOOKS_DIR/capture.sh"
-    cp "$SCRIPT_DIR/digest.py" "$HOOKS_DIR/digest.py"
+    echo "   Copying from local plugin..."
+    cp "$SCRIPT_DIR/capture.sh" "$GLOBAL_CAPTURE"
+    cp "$SCRIPT_DIR/digest.py" "$GLOBAL_DIGEST"
 else
-    echo "📥 Downloading hook scripts..."
+    echo "   Downloading..."
     if command -v curl &>/dev/null; then
-        curl -fsSL "$BASE_URL/capture.sh" > "$HOOKS_DIR/capture.sh"
-        curl -fsSL "$BASE_URL/digest.py" > "$HOOKS_DIR/digest.py"
+        curl -fsSL "$BASE_URL/capture.sh" > "$GLOBAL_CAPTURE"
+        curl -fsSL "$BASE_URL/digest.py" > "$GLOBAL_DIGEST"
     else
-        wget -q "$BASE_URL/capture.sh" -O "$HOOKS_DIR/capture.sh"
-        wget -q "$BASE_URL/digest.py" -O "$HOOKS_DIR/digest.py"
+        wget -q "$BASE_URL/capture.sh" -O "$GLOBAL_CAPTURE"
+        wget -q "$BASE_URL/digest.py" -O "$GLOBAL_DIGEST"
     fi
 fi
-chmod +x "$HOOKS_DIR/capture.sh"
+chmod +x "$GLOBAL_CAPTURE"
+
+# 2. Create per-project data directory (no scripts here, just data)
+echo "📁 Creating project data directory..."
+mkdir -p "$EVOLUTION_DIR/raw"
 
 # 3. Initialize session metadata
 echo "📊 Initializing metadata..."
@@ -116,6 +123,7 @@ EOF
 fi
 
 # 5. Merge hooks into .claude/settings.json
+#    Hook command uses $HOME so it's portable — no hardcoded absolute paths.
 echo "🔧 Configuring hooks..."
 if [ -f "$SETTINGS" ]; then
     cp "$SETTINGS" "$SETTINGS.bak.$(date +%Y%m%d_%H%M%S)"
@@ -133,13 +141,14 @@ if os.path.exists(settings_path):
 
 hooks = settings.setdefault("hooks", {})
 
-capture_cmd = "bash .claude/evolution/hooks/capture.sh"
+# Use $HOME so the path is portable across all users and machines.
+# The script itself reads `cwd` from the hook payload to identify the project.
+capture_cmd = "bash $HOME/.claude/evolution/hooks/capture.sh"
 hook_short = {"hooks": [{"type": "command", "command": capture_cmd, "timeout": 5}]}
-hook_long = {"hooks": [{"type": "command", "command": capture_cmd, "timeout": 30}]}
+hook_long  = {"hooks": [{"type": "command", "command": capture_cmd, "timeout": 30}]}
 hook_start = {"hooks": [{"type": "command", "command": capture_cmd, "timeout": 10}]}
-hook_tool = {"matcher": "Edit|Write|Bash|Read", "hooks": [{"type": "command", "command": capture_cmd, "timeout": 5}]}
+hook_tool  = {"matcher": "Edit|Write|Bash|Read", "hooks": [{"type": "command", "command": capture_cmd, "timeout": 5}]}
 
-# Check if evolution hooks already exist (avoid duplicates)
 def has_evolution_hook(event_hooks):
     for h in event_hooks:
         for inner in h.get("hooks", []):
@@ -148,16 +157,15 @@ def has_evolution_hook(event_hooks):
     return False
 
 for event, hook_entry in [
-    ("SessionStart", hook_start),
-    ("UserPromptSubmit", hook_short),
-    ("Stop", hook_short),
-    ("SessionEnd", hook_long),
+    ("SessionStart",      hook_start),
+    ("UserPromptSubmit",  hook_short),
+    ("Stop",              hook_short),
+    ("SessionEnd",        hook_long),
 ]:
     event_hooks = hooks.setdefault(event, [])
     if not has_evolution_hook(event_hooks):
         event_hooks.append(hook_entry)
 
-# PostToolUse with matcher
 post_hooks = hooks.setdefault("PostToolUse", [])
 if not has_evolution_hook(post_hooks):
     post_hooks.append(hook_tool)
@@ -183,6 +191,9 @@ add_gitignore ".claude/evolution/session-meta.json"
 
 echo ""
 echo "✅ Evolution system installed! (v3.1)"
+echo ""
+echo "Hook scripts installed to: $GLOBAL_HOOKS_DIR"
+echo "Project data directory:    $(pwd)/$EVOLUTION_DIR"
 echo ""
 echo "What happens now:"
 echo "  - Hook scripts will automatically capture interaction data"
