@@ -109,8 +109,10 @@ INJECT
 
   SessionEnd)
     # Trigger Layer 2 digest (run in background)
-    if command -v python3 &>/dev/null; then
-      python3 "$EVOLUTION_DIR/hooks/digest.py" "$EVOLUTION_DIR" "$SESSION_ID" &
+    # digest.py lives in the global hooks dir (~/.claude/evolution/hooks/)
+    DIGEST_PY="$HOME/.claude/evolution/hooks/digest.py"
+    if command -v python3 &>/dev/null && [ -f "$DIGEST_PY" ]; then
+      python3 "$DIGEST_PY" "$EVOLUTION_DIR" "$SESSION_ID" &
     fi
     ;;
 
